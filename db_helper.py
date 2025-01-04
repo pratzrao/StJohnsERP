@@ -1,13 +1,9 @@
 import libsql_experimental as libsql
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from the .env file
-load_dotenv()
+import streamlit as st
 
 # Get database connection details from environment variables
-db_url = os.getenv("DB_URL")
-auth_token = os.getenv("AUTH_TOKEN")
+db_url = st.secrets["DB_URL"]
+auth_token = st.secrets["AUTH_TOKEN"]
 
 if not db_url or not auth_token:
     raise Exception("Database URL or Auth Token is missing. Check your .env file.")
