@@ -1,5 +1,5 @@
 import bcrypt
-from db_helper import fetch_user
+from services.db_helper import fetch_user
 
 def authenticate_user(email, password):
     """

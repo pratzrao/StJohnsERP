@@ -1,42 +1,76 @@
 import streamlit as st
-from services.auth_service import authenticate_user
 
-# Streamlit App Configuration
-st.set_page_config(page_title="St. John's School Management System", layout="centered")
+# Logout function
+def logout():
+    """Logs the user out and redirects to the login page."""
+    st.session_state["authenticated"] = False
+    st.session_state["email"] = None
+    st.rerun()
 
-# Authentication Functionality
-def login():
-    st.title("St. John's School Management System")
-
-    # Input fields for email and password
-    email = st.text_input("Email", placeholder="Enter your email")
-    password = st.text_input("Password", placeholder="Enter your password", type="password")
-
-    # Login Button
-    if st.button("Login"):
-        # Validate credentials
-        if email and password:
-            success, error = authenticate_user(email, password)
-            if success:
-                st.session_state["authenticated"] = True
-                st.session_state["email"] = email
-                st.rerun()  # Refresh the app to display authenticated content
-            else:
-                st.error(error)
-        else:
-            st.warning("Please enter both email and password.")
-
-# Main Content for Authenticated Users
-def main():
-    st.header("St. John's School Management System")
-    st.success(f"Welcome, {st.session_state['email']}!")
-    st.write("More functionality can be added here.")
-
-# Application Flow
+# Initialize session state for authentication
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
+# Define pages
+pages = {
+    "Login": st.Page("login.py", title="Log in", icon=":material/login:", default=True),
+    "Logout": st.Page(logout, title="Log out", icon=":material/logout:"),
+}
+
+# Define sections with their pages
+sections = {
+    "Dashboards": [
+        st.Page("screens/dashboard/overview.py", title="Overview", icon=":material/dashboard:"),
+        st.Page("screens/dashboard/employee_dashboard.py", title="Employee Dashboard", icon=":material/people:"),
+        st.Page("screens/dashboard/student_dashboard.py", title="Student Dashboard", icon=":material/school:"),
+        st.Page("screens/dashboard/financial_dashboard.py", title="Financial Dashboard", icon=":material/attach_money:"),
+    ],
+    "Students": [
+        st.Page("screens/students/view_students.py", title="View Students", icon=":material/groups:"),
+        st.Page("screens/students/add_student.py", title="Add Student", icon=":material/person_add:"),
+    ],
+    "Employees": [
+        st.Page("screens/employees/view_teachers.py", title="View Teachers", icon=":material/person:"),
+        st.Page("screens/employees/view_admins.py", title="View Admins", icon=":material/admin_panel_settings:"),
+        st.Page("screens/employees/view_management.py", title="View Management", icon=":material/business_center:"),
+        st.Page("screens/employees/add_employee.py", title="Add Employee", icon=":material/person_add_alt:"),
+    ],
+    "Inventory": [
+        st.Page("screens/inventory/view_sales_inventory.py", title="Sales Inventory", icon=":material/storefront:"),
+        st.Page("screens/inventory/view_school_inventory.py", title="School Inventory", icon=":material/class:"),
+    ],
+    "Sales": [
+        st.Page("screens/sales/view_sales.py", title="View Sales", icon=":material/insights:"),
+        st.Page("screens/sales/add_sale.py", title="Add Sale", icon=":material/shopping_cart:"),
+    ],
+    "Library": [
+        st.Page("screens/library/book_checkout.py", title="Book Checkout", icon=":material/library_books:"),
+        st.Page("screens/library/view_checked_out.py", title="Checked-out Books", icon=":material/menu_book:"),
+        st.Page("screens/library/view_books.py", title="View All Books", icon=":material/book:"),
+    ],
+    "Fees": [
+        st.Page("screens/fees/view_fees.py", title="View Fees", icon=":material/payments:"),
+        st.Page("screens/fees/add_fee_payment.py", title="Add Fee Payment", icon=":material/credit_card:"),
+    ],
+}
+
+# If authenticated, show the main content
 if st.session_state["authenticated"]:
-    main()
+    st.sidebar.write(f"Logged in as: {st.session_state['email']}")
+    # Full navigation with sections
+    pg = st.navigation({
+        "Dashboards": sections["Dashboards"],
+        "Students": sections["Students"],
+        "Employees": sections["Employees"],
+        "Inventory": sections["Inventory"],
+        "Sales": sections["Sales"],
+        "Library": sections["Library"],
+        "Fees": sections["Fees"],
+        "Account": [pages["Logout"]],
+    })
 else:
-    login()
+    # If not authenticated, show the login page
+    pg = st.navigation([pages["Login"]])
+
+# Run the selected page
+pg.run()
