@@ -350,34 +350,3 @@ def fetch_inventory_details(table_name):
         print(f"Error fetching inventory details from {table_name}: {e}")
         return []
     
-def update_student_details(updated_data, student_id):
-    """Update student details in the database."""
-    conn = get_connection()  # Assuming get_connection() establishes your DB connection
-    query = """
-        UPDATE student_details
-        SET student_full_name = ?, grade = ?, section = ?, class_teacher_id = ?, 
-            stream = ?, subjects = ?, enrollment_status = ?, entered_in_sts = ?, 
-            long_absence = ?, sts_number = ?
-        WHERE student_id = ?;
-    """
-    print("Query run is - ", query)
-    params = (
-        updated_data['student_full_name'],
-        updated_data['grade'],
-        updated_data['section'],
-        updated_data['class_teacher_id'],
-        updated_data['stream'],
-        updated_data['subjects'],
-        updated_data['enrollment_status'],
-        updated_data['entered_in_sts'],
-        updated_data['long_absence'],
-        updated_data['sts_number'],
-        student_id  # Use the original student_id to identify which student to update
-    )
-    
-    try:
-        conn.execute(query, params)  # Execute the query with the provided parameters
-        conn.commit()  # Commit the transaction
-    except Exception as e:
-        print(f"Error updating student details: {e}")
-        conn.rollback()  # Rollback the transaction in case of error
