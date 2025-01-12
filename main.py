@@ -45,11 +45,13 @@ sections = {
     ],
     "Library": [
         st.Page("screens/library/book_checkout.py", title="Book Checkout", icon=":material/library_books:"),
+        st.Page("screens/library/book_return.py", title="Book Return", icon=":material/library_books:"),
         st.Page("screens/library/view_checked_out.py", title="Checked-out Books", icon=":material/menu_book:"),
         st.Page("screens/library/view_books.py", title="View All Books", icon=":material/book:"),
     ],
     "Fees": [
-        st.Page("screens/fees/view_fees.py", title="View Fees", icon=":material/payments:"),
+        st.Page("screens/fees/view_fees_due.py", title="View Fees Due", icon=":material/payments:"),
+        st.Page("screens/fees/view_fees_paid.py", title="View Fees Paid", icon=":material/payments:"),
         st.Page("screens/fees/add_fee_payment.py", title="Add Fee Payment", icon=":material/credit_card:"),
     ],
 }

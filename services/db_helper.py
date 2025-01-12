@@ -349,4 +349,153 @@ def fetch_inventory_details(table_name):
     except Exception as e:
         print(f"Error fetching inventory details from {table_name}: {e}")
         return []
-    
+
+def fetch_checked_out_books_details():
+    """
+    Fetch details of all checked-out books by joining book_checkouts and book_inventory.
+    """
+    query = """
+        SELECT 
+            bc.book_id, bi.book_name, bc.student_id, bc.checkout_date, bc.return_date, bc.notes
+        FROM book_checkouts bc
+        INNER JOIN book_inventory bi ON bc.book_id = bi.book_id
+        WHERE bi.status = 'checked_out';
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [
+            {
+                "book_id": row[0],
+                "book_name": row[1],
+                "student_id": row[2],
+                "checkout_date": row[3],
+                "return_date": row[4],
+                "notes": row[5],
+            }
+            for row in result.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error fetching checked out book details: {e}")
+        return []
+
+def return_book(book_id, return_date, notes=None):
+    """
+    Return a checked-out book: Update book_checkouts and book_inventory status.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Update return_date and notes in book_checkouts using f-strings
+        query_checkouts = f"""
+            UPDATE book_checkouts 
+            SET return_date = '{return_date}', notes = '{notes}'
+            WHERE book_id = '{book_id}';
+        """
+        print(f"Debug: Executing query (book_checkouts): {query_checkouts}")  # Debug statement to print the raw SQL
+        cursor.execute(query_checkouts)
+        
+        # Update book_inventory status using f-strings
+        query_inventory = f"UPDATE book_inventory SET status = 'in_library' WHERE book_id = '{book_id}';"
+        print(f"Debug: Executing query (book_inventory): {query_inventory}")  # Debug statement to print the raw SQL
+        cursor.execute(query_inventory)
+        
+        conn.commit()
+        print("Book return successful.")
+    except Exception as e:
+        print(f"Error during book return: {e}")
+        conn.rollback()
+        raise
+     
+
+def fetch_book_details(book_id):
+    """Fetch full details of a book from the database using its book_id."""
+    query = """
+        SELECT 
+            bi.book_id, bi.book_name, bc.student_id, bc.checkout_date, bc.return_date, bc.notes
+        FROM book_checkouts bc
+        INNER JOIN book_inventory bi ON bc.book_id = bi.book_id
+        WHERE bc.book_id = ?;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query, (book_id,))
+        row = result.fetchone()
+        if row:
+            return {
+                "book_id": row[0],
+                "book_name": row[1],
+                "student_id": row[2],
+                "checkout_date": row[3],
+                "return_date": row[4],
+                "notes": row[5],
+            }
+        return None
+    except Exception as e:
+        print(f"Error fetching book details: {e}")
+        return None
+
+
+def checkout_book(book_id, student_id, checkout_date):
+    """
+    Checkout a book: Insert a record into book_checkouts and update book_inventory status.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Insert into book_checkouts using f-strings for the SQL query
+        query_checkouts = f"""
+            INSERT INTO book_checkouts (book_id, student_id, checkout_date)
+            VALUES ('{book_id}', '{student_id}', '{checkout_date}');
+        """
+        print(f"Debug: Executing query (book_checkouts): {query_checkouts}")  # Debug print for raw SQL
+        cursor.execute(query_checkouts)
+
+        # Update book_inventory status using f-strings for the SQL query
+        query_inventory = f"UPDATE book_inventory SET status = 'checked_out' WHERE book_id = '{book_id}';"
+        print(f"Debug: Executing query (book_inventory): {query_inventory}")  # Debug print for raw SQL
+        cursor.execute(query_inventory)
+
+        conn.commit()
+        print("Book checkout successful.")
+    except Exception as e:
+        print(f"Error during book checkout: {e}")
+        conn.rollback()
+        raise
+
+
+#fetch data for dropdowns
+def fetch_student_ids():
+    """Fetch all student IDs from the student_details table."""
+    query = "SELECT student_id FROM student_details;"
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [row[0] for row in result.fetchall()]
+    except Exception as e:
+        print(f"Error fetching student IDs: {e}")
+        return []
+
+def fetch_available_books():
+    """Fetch book IDs from book_inventory where the status is 'in_library'."""
+    query = "SELECT book_id FROM book_inventory WHERE status = 'in_library';"
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [row[0] for row in result.fetchall()]
+    except Exception as e:
+        print(f"Error fetching available books: {e}")
+        return []
+
+def fetch_checked_out_books():
+    """Fetch book IDs from book_inventory where the status is 'checked_out'."""
+    query = "SELECT book_id FROM book_inventory WHERE status = 'checked_out';"
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [row[0] for row in result.fetchall()]
+    except Exception as e:
+        print(f"Error fetching checked out books: {e}")
+        return []
