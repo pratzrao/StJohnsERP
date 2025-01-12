@@ -1,5 +1,6 @@
 import libsql_experimental as libsql
 import streamlit as st
+from datetime import datetime
 
 # Get database connection details from environment variables
 db_url = st.secrets["DB_URL"]
@@ -350,6 +351,136 @@ def fetch_inventory_details(table_name):
         print(f"Error fetching inventory details from {table_name}: {e}")
         return []
 
+def fetch_due_fees(student_id):
+    query = "SELECT * FROM fees_payable WHERE student_id = ?"
+    try:
+        conn = get_connection()
+        result = conn.execute(query, (student_id,))
+        return [{"due_for": row[4], "amount": row[2], "due_by": row[3]} for row in result.fetchall()]
+    except Exception as e:
+        print(f"Error fetching due fees: {e}")
+        return []
+
+def fetch_all_fee_payments():
+    """Fetch all fee payments for all students."""
+    query = """
+        SELECT transaction_id, student_id, amount_paid, transaction_date, paid_toward 
+        FROM fees_payments;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [
+            {"transaction_id": row[0], "student_id": row[1], "amount_paid": row[2], "transaction_date": row[3], "paid_toward": row[4]}
+            for row in result.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error fetching all fee payments: {e}")
+        return []
+
+def fetch_all_fee_dues():
+    """Fetch all fees due for all students."""
+    query = """
+        SELECT payable_id, student_id, amount, due_by, due_for 
+        FROM fees_payable;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [
+            {"payable_id": row[0], "student_id": row[1], "amount": row[2], "due_by": row[3], "due_for": row[4]}
+            for row in result.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error fetching all fee dues: {e}")
+        return []
+
+def fetch_payment_history(student_id):
+    query = "SELECT * FROM fees_payments WHERE student_id = ?"
+    try:
+        conn = get_connection()
+        result = conn.execute(query, (student_id,))
+        return [{"paid_toward": row[4], "amount_paid": row[2], "transaction_date": row[3]} for row in result.fetchall()]
+    except Exception as e:
+        print(f"Error fetching payment history: {e}")
+        return []
+    
+
+def insert_new_fee(student_id, fee_name, fee_amount, due_by):
+    """Insert a new fee into the fees_payable table."""
+    
+    # Format the due date (due_by) into the correct format
+    formatted_due_by = due_by.strftime("%d/%m/%Y")  # Ensure it's in the correct format
+    
+    query = f"""
+        INSERT INTO fees_payable (student_id, amount, due_by, due_for)
+        VALUES ('{student_id}', {fee_amount}, '{formatted_due_by}', '{fee_name}');
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print(f"Executing query (new fee): {query}")  # Debug print for raw SQL
+        cursor.execute(query)
+        conn.commit()
+        print(f"New fee '{fee_name}' inserted successfully.")
+    except Exception as e:
+        print(f"Error inserting new fee: {e}")
+        conn.rollback()
+
+def insert_fee_payment(student_id, fee_name, fee_amount, amount_paid):
+    """Insert a new fee payment into the fees_payments table."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Use f-strings for the SQL query
+        query = f"""
+            INSERT INTO fees_payments (student_id, amount_paid, transaction_date, paid_toward)
+            VALUES ('{student_id}', {amount_paid}, '{str(datetime.now())}', '{fee_name}');
+        """
+        print(f"Executing query: {query}")  # Debug print for raw SQL
+        cursor.execute(query)
+        conn.commit()
+        print("Fee payment inserted successfully.")
+    except Exception as e:
+        print(f"Error inserting fee payment: {e}")
+        conn.rollback()
+
+def delete_fee_due(student_id, fee_name):
+    """Delete a fee due after payment has been made."""
+    query = f"""
+        DELETE FROM fees_payable
+        WHERE student_id = '{student_id}' AND due_for = '{fee_name}';
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print(f"Executing query (delete fee): {query}")  # Debug print for raw SQL
+        cursor.execute(query)
+        conn.commit()
+        print(f"Fee '{fee_name}' cleared for student {student_id}.")
+    except Exception as e:
+        print(f"Error deleting fee due: {e}")
+        conn.rollback()
+
+def update_fee_due(student_id, fee_name, new_amount_due):
+    """Update the amount due for an existing fee in the fees_payable table."""
+    query = f"""
+        UPDATE fees_payable
+        SET amount = {new_amount_due}
+        WHERE student_id = '{student_id}' AND due_for = '{fee_name}';
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print(f"Executing query (update fee): {query}")  # Debug print for raw SQL
+        cursor.execute(query)
+        conn.commit()
+        print(f"Fee '{fee_name}' updated for student {student_id} with new amount due: {new_amount_due}")
+    except Exception as e:
+        print(f"Error updating fee due: {e}")
+        conn.rollback()
+        
 def fetch_checked_out_books_details():
     """
     Fetch details of all checked-out books by joining book_checkouts and book_inventory.
@@ -359,8 +490,9 @@ def fetch_checked_out_books_details():
             bc.book_id, bi.book_name, bc.student_id, bc.checkout_date, bc.return_date, bc.notes
         FROM book_checkouts bc
         INNER JOIN book_inventory bi ON bc.book_id = bi.book_id
-        WHERE bi.status = 'checked_out';
+        WHERE bi.status = 'checked_out' AND return_date is NULL;
     """
+    # here changes
     try:
         conn = get_connection()
         result = conn.execute(query)
