@@ -33,6 +33,104 @@ def get_connection():
         _connection = libsql.connect(database=db_url, auth_token=auth_token)
     return _connection
 
+# INSERT EMPLOYEES #
+# Insert Management Employee
+def insert_management(first_name, last_name, date_of_birth, aadhar_number, pan_number, gender,
+                      mobile_number, address, email, marital_status, emergency_contact_name,
+                      emergency_contact_relationship, emergency_contact_number, job_title, date_hired,
+                      full_time_or_part_time, qualification, professional_certifications, 
+                      years_of_experience_in_stjohns, years_of_previous_experience, additional_skills, 
+                      languages, bank_details, opt_in_for_pf, status):
+    """Insert new management employee into the management_details table."""
+    query = f"""
+        INSERT INTO management_details (
+            first_name, last_name, date_of_birth, aadhar_number, pan_number, gender, mobile_number, 
+            address, email, marital_status, emergency_contact_name, emergency_contact_relationship, 
+            emergency_contact_number, job_title, date_hired, full_time_or_part_time, qualification, 
+            professional_certifications, years_of_experience_in_stjohns, years_of_previous_experience, 
+            additional_skills, languages, bank_details, opt_in_for_pf, status
+        ) VALUES ('{first_name}', '{last_name}', '{date_of_birth}', '{aadhar_number}', '{pan_number}', 
+                  '{gender}', '{mobile_number}', '{address}', '{email}', '{marital_status}', '{emergency_contact_name}',
+                  '{emergency_contact_relationship}', '{emergency_contact_number}', '{job_title}', 
+                  '{date_hired}', '{full_time_or_part_time}', '{qualification}', '{professional_certifications}', 
+                  '{years_of_experience_in_stjohns}', '{years_of_previous_experience}', '{additional_skills}', 
+                  '{languages}', '{bank_details}', '{opt_in_for_pf}', '{status}');
+    """
+    print(query)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        print(f"Management employee {first_name} {last_name} added successfully.")
+    except Exception as e:
+        print(f"Error inserting management employee: {e}")
+        conn.rollback()
+
+# Insert Teacher Employee
+def insert_teacher(first_name, last_name, date_of_birth, aadhar_number, pan_number, gender, mobile_number,
+                   address, email, marital_status, emergency_contact_name, emergency_contact_relationship,
+                   emergency_contact_number, job_title, grades_taught, subjects_taught, teaching_periods_per_week,
+                   date_hired, full_time_or_part_time, qualification, professional_certifications,
+                   years_of_experience_in_stjohns, years_of_previous_experience, additional_skills, languages,
+                   bank_details, opt_in_for_pf, status):
+    """Insert new teacher employee into the teacher_details table."""
+    query = f"""
+        INSERT INTO teacher_details (
+            first_name, last_name, date_of_birth, aadhar_number, pan_number, gender, mobile_number, 
+            address, email, marital_status, emergency_contact_name, emergency_contact_relationship, 
+            emergency_contact_number, job_title, grades_taught, subjects_taught, teaching_periods_per_week, 
+            date_hired, full_time_or_part_time, qualification, professional_certifications, 
+            years_of_experience_in_stjohns, years_of_previous_experience, additional_skills, languages, 
+            bank_details, opt_in_for_pf, status
+        ) VALUES ('{first_name}', '{last_name}', '{date_of_birth}', '{aadhar_number}', '{pan_number}', 
+                  '{gender}', '{mobile_number}', '{address}', '{email}', '{marital_status}', 
+                  '{emergency_contact_name}', '{emergency_contact_relationship}', '{emergency_contact_number}', 
+                  '{job_title}', '{grades_taught}', '{subjects_taught}', '{teaching_periods_per_week}', 
+                  '{date_hired}', '{full_time_or_part_time}', '{qualification}', '{professional_certifications}', 
+                  '{years_of_experience_in_stjohns}', '{years_of_previous_experience}', '{additional_skills}', 
+                  '{languages}', '{bank_details}', '{opt_in_for_pf}', '{status}');
+    """
+    print(query)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        print(f"Teacher employee {first_name} {last_name} added successfully.")
+    except Exception as e:
+        print(f"Error inserting teacher employee: {e}")
+        conn.rollback()
+
+# Insert Admin Employee
+def insert_admin(first_name, last_name, date_of_birth, aadhar_number, pan_number, gender,
+                 mobile_number, address, email, marital_status, emergency_contact_name,
+                 emergency_contact_relationship, emergency_contact_number, job_title, date_hired,
+                 qualification, status):
+    """Insert new admin employee into the admin_details table."""
+    query = f"""
+        INSERT INTO admin_details (
+            first_name, last_name, date_of_birth, aadhar_number, pan_number, gender, mobile_number, 
+            address, email, marital_status, emergency_contact_name, emergency_contact_relationship, 
+            emergency_contact_number, job_title, date_hired, qualification, status
+        ) VALUES ('{first_name}', '{last_name}', '{date_of_birth}', '{aadhar_number}', '{pan_number}', 
+                  '{gender}', '{mobile_number}', '{address}', '{email}', '{marital_status}', 
+                  '{emergency_contact_name}', '{emergency_contact_relationship}', '{emergency_contact_number}', 
+                  '{job_title}', '{date_hired}', '{qualification}', '{status}');
+    """
+    print(query)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        print(f"Admin employee {first_name} {last_name} added successfully.")
+    except Exception as e:
+        print(f"Error inserting admin employee: {e}")
+        conn.rollback()
+
+# END INSERT EMPLOYEES #
+
 def fetch_user(email):
     """Fetch a user by email from the database."""
     conn = get_connection()
@@ -630,4 +728,143 @@ def fetch_checked_out_books():
         return [row[0] for row in result.fetchall()]
     except Exception as e:
         print(f"Error fetching checked out books: {e}")
+        return []
+    
+#SALES
+
+def decrease_inventory(item_id, quantity_sold):
+    """
+    Decrease the quantity of an item in the sale_inventory table after a sale.
+    """
+    query = f"""
+        UPDATE sale_inventory
+        SET quantity = quantity - {quantity_sold}
+        WHERE item_id = '{item_id}';
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print(f"Executing query: {query}")
+        cursor.execute(query)
+        conn.commit()
+        print(f"Inventory updated for item {item_id}.")
+    except Exception as e:
+        print(f"Error updating inventory: {e}")
+        conn.rollback()
+        raise
+
+def fetch_latest_sale_id():
+    """
+    Fetch the latest base sale ID from the sale_records table,
+    ignoring the hyphenated part after the base sale ID.
+    """
+    query = """
+        SELECT sale_id
+        FROM sale_records
+        ORDER BY sale_id DESC
+        LIMIT 1;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        row = result.fetchone()
+        if row:
+            # Extract the base sale ID by removing the hyphenation
+            base_sale_id = row[0].split("-")[0]  # Example: SJSSALE00001 from SJSSALE00001-2
+            return base_sale_id
+        return None
+    except Exception as e:
+        print(f"Error fetching latest sale ID: {e}")
+        return None
+    
+
+def insert_sale_records(base_sale_id, sales):
+    """
+    Insert multiple sale records into the sale_records table.
+    Automatically adds hyphenation for unique sale IDs.
+    
+    :param base_sale_id: The base sale ID for the transaction (e.g., "SJSSALE00001").
+    :param sales: A list of dictionaries, each containing sale details.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        for idx, sale in enumerate(sales, start=1):
+            # Create a hyphenated sale ID for each item
+            hyphenated_sale_id = f"{base_sale_id}-{idx}"
+            
+            query = f"""
+                INSERT INTO sale_records (
+                    sale_id, item_id, student_id, sale_date, quantity, 
+                    cost_per_unit, selling_price, payment_status
+                ) VALUES (
+                    '{hyphenated_sale_id}', '{sale['item_id']}', '{sale['student_id']}', 
+                    '{sale['sale_date']}', {sale['quantity']}, {sale['cost_per_unit']}, 
+                    {sale['selling_price']}, '{sale['payment_status']}'
+                );
+            """
+            print(f"Executing query: {query}")
+            cursor.execute(query)
+
+        conn.commit()
+        print(f"Sales successfully recorded under Base Sale ID {base_sale_id}.")
+    except Exception as e:
+        print(f"Error inserting sale records: {e}")
+        conn.rollback()
+        raise
+
+
+def fetch_available_items():
+    """Fetch item details from sale_inventory where the status is 'available'."""
+    query = """
+        SELECT 
+            item_id, item_name, quantity, cost_per_unit, selling_price 
+        FROM sale_inventory 
+        WHERE status = 'available';
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [
+            {
+                "item_id": row[0],
+                "item_name": row[1],
+                "quantity": row[2],
+                "cost_per_unit": row[3],
+                "selling_price": row[4],
+            }
+            for row in result.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error fetching available items: {e}")
+        return []
+    
+def fetch_sales_records():
+    """Fetch all sale records from the sale_records table."""
+    query = """
+        SELECT 
+            sale_id, item_id, student_id, sale_date, quantity, 
+            cost_per_unit, selling_price, total_cost, payment_status
+        FROM sale_records;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return [
+            {
+                "sale_id": row[0],
+                "item_id": row[1],
+                "student_id": row[2],
+                "sale_date": row[3],
+                "quantity": row[4],
+                "cost_per_unit": row[5],
+                "selling_price": row[6],
+                "total_cost": row[7],
+                "payment_status": row[8],
+            }
+            for row in result.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error fetching sales records: {e}")
         return []
