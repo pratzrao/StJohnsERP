@@ -9,10 +9,14 @@ if "sale_items" not in st.session_state:
 
 # Fetch available items and student IDs
 available_items = fetch_available_items()
-student_ids = fetch_student_ids()
+students = fetch_student_ids()  # Now returns ["SJSS00001 - Siddhanth Singh", ...]
 
-# Dropdown for selecting student
-student_id = st.selectbox("Select Student ID", student_ids)
+# Create a mapping: "SJSS00001 - Siddhanth Singh" → "SJSS00001"
+student_mapping = {option: option.split(" - ")[0] for option in students}
+
+# Dropdown for selecting student (User sees "ID - Name", but we store only "ID")
+selected_student_display = st.selectbox("Select Student", list(student_mapping.keys()))
+student_id = student_mapping[selected_student_display]  # Extract Student ID
 
 # Dropdown for selecting item
 item_names = [item["item_name"] for item in available_items]
@@ -39,6 +43,7 @@ if st.button("Add Item"):
             "item_id": selected_item["item_id"],
             "item_name": selected_item["item_name"],
             "quantity": quantity,
+            "cost_per_unit": selected_item["cost_per_unit"],
             "selling_price": selected_item["selling_price"],
             "total_price": quantity * selected_item["selling_price"],
         })
@@ -74,7 +79,7 @@ if st.button("Finalize Sale"):
                 "student_id": student_id,
                 "sale_date": sale_date,
                 "quantity": item["quantity"],
-                "cost_per_unit": item["selling_price"],
+                "cost_per_unit": item["cost_per_unit"],
                 "selling_price": item["selling_price"],
                 "payment_status": payment_status,
             })

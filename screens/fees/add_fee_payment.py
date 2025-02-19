@@ -7,7 +7,15 @@ st.title("Add Fee Payment")
 add_new_fee = st.checkbox("Add New Fee")
 
 # Fetch the student IDs
-student_id = st.selectbox("Select Student ID", fetch_student_ids())
+
+student_options = fetch_student_ids()
+
+# Create a mapping of "Student ID - Name" to Student ID
+student_mapping = {option: option.split(" - ")[0] for option in student_options}
+
+# Select Student (User sees "ID - Name", but we store only "ID")
+selected_display = st.selectbox("Select Student", list(student_mapping.keys()))
+student_id = student_mapping[selected_display]  # Extract only Student ID
 
 # Initialize the amount payable
 amount_payable = 0.0
@@ -18,7 +26,7 @@ paid_toward = None  # To store the paid_toward field
 # If "Add New Fee" is selected, change the form behavior
 if add_new_fee:
     # New fee input fields
-    fee_name = st.text_input("New Fee Description (e.g., Bus Charges)")
+    fee_name = st.selectbox("Select Fees Reason", ['Tuition', 'Library Late Fees', 'Bus and Transportation'])
     fee_amount = st.number_input("Amount for New Fee", min_value=0.0, step=0.01)
     amount_payable = fee_amount  # Amount payable for new fee
     paid_toward = fee_name  # For new fee, paid_toward is set to the fee name

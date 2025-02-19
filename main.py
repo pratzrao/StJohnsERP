@@ -20,7 +20,6 @@ pages = {
 # Define sections with their pages
 sections = {
     "Dashboards": [
-        st.Page("screens/dashboard/overview.py", title="Overview", icon=":material/dashboard:"),
         st.Page("screens/dashboard/employee_dashboard.py", title="Employee Dashboard", icon=":material/people:"),
         st.Page("screens/dashboard/student_dashboard.py", title="Student Dashboard", icon=":material/school:"),
         st.Page("screens/dashboard/financial_dashboard.py", title="Financial Dashboard", icon=":material/attach_money:"),
@@ -57,6 +56,14 @@ sections = {
         st.Page("screens/fees/view_all_fees_due.py", title="View All Fees Due", icon=":material/payments:"),
         st.Page("screens/fees/view_all_fees_paid.py", title="View All Fees Paid", icon=":material/payments:"),
     ],
+    "Counselling": [
+        st.Page("screens/counselling/view_cases.py", title="View Counselling Cases", icon=":material/payments:"),
+        st.Page("screens/counselling/view_sessions.py", title="View Counselling Sessions", icon=":material/payments:"),
+        st.Page("screens/counselling/add_new_case.py", title="Add New Counselling Case", icon=":material/credit_card:"),
+        st.Page("screens/counselling/add_new_session.py", title="Add New Counselling Session", icon=":material/credit_card:"),
+        st.Page("screens/counselling/update_case.py", title="Update Counselling Case", icon=":material/payments:"),
+        st.Page("screens/counselling/update_session.py", title="Update Counselling Session", icon=":material/payments:"),
+    ],
 }
 
 # If authenticated, show the main content
@@ -71,6 +78,7 @@ if st.session_state["authenticated"]:
         "Sales": sections["Sales"],
         "Library": sections["Library"],
         "Fees": sections["Fees"],
+        "Counselling": sections["Counselling"],
         "Account": [pages["Logout"]],
     })
 else:

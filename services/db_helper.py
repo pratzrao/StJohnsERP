@@ -698,23 +698,23 @@ def checkout_book(book_id, student_id, checkout_date):
 
 #fetch data for dropdowns
 def fetch_student_ids():
-    """Fetch all student IDs from the student_details table."""
-    query = "SELECT student_id FROM student_details;"
+    """Fetch all student IDs along with student names from the student_details table."""
+    query = "SELECT student_id, student_full_name FROM student_details;"
     try:
         conn = get_connection()
         result = conn.execute(query)
-        return [row[0] for row in result.fetchall()]
+        return [f"{row[0]} - {row[1]}" for row in result.fetchall()]  # Format: "SJSS00001 - Siddhanth Singh"
     except Exception as e:
         print(f"Error fetching student IDs: {e}")
         return []
 
 def fetch_available_books():
-    """Fetch book IDs from book_inventory where the status is 'in_library'."""
-    query = "SELECT book_id FROM book_inventory WHERE status = 'in_library';"
+    """Fetch book IDs and titles from book_inventory where the status is 'in_library'."""
+    query = "SELECT book_id, book_name FROM book_inventory WHERE status = 'in_library';"
     try:
         conn = get_connection()
         result = conn.execute(query)
-        return [row[0] for row in result.fetchall()]
+        return [f"{row[0]} - {row[1]}" for row in result.fetchall()]  # Format: "BK0001 - The Great Gatsby"
     except Exception as e:
         print(f"Error fetching available books: {e}")
         return []
@@ -868,3 +868,394 @@ def fetch_sales_records():
     except Exception as e:
         print(f"Error fetching sales records: {e}")
         return []
+
+#Counselling Helper Functions
+
+# Generate Unique Case ID
+def generate_case_id():
+    """Generates a unique Case ID (STSCC00001, STSCC00002, etc.)."""
+    query = "SELECT case_id FROM counseling_cases ORDER BY created_at DESC LIMIT 1;"
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchone()
+        if result:
+            last_id = int(result[0].replace("STSCC", "")) + 1
+            return f"STSCC{last_id:05d}"
+        return "STSCC00001"
+    except Exception as e:
+        print(f"Error generating case ID: {e}")
+        return "STSCC00001"
+
+# Generate Unique Session ID
+def generate_session_id():
+    """Generates a unique Session ID (STSCS00001, STSCS00002, etc.)."""
+    query = "SELECT session_id FROM counseling_sessions ORDER BY created_at DESC LIMIT 1;"
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchone()
+        if result:
+            last_id = int(result[0].replace("STSCS", "")) + 1
+            return f"STSCS{last_id:05d}"
+        return "STSCS00001"
+    except Exception as e:
+        print(f"Error generating session ID: {e}")
+        return "STSCS00001"
+
+def insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed):
+    """Inserts a new counseling case into the database."""
+    case_id = generate_case_id()
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    query = f"""
+        INSERT INTO counseling_cases (
+            case_id, student_id, reason_for_case, diagnosis, case_notes, is_case_closed, created_at, updated_at
+        ) VALUES (
+            '{case_id}', '{student_id}', '{reason_for_case}', '{diagnosis}', '{case_notes}', {int(is_case_closed)}, 
+            '{created_at}', '{created_at}'
+        );
+    """
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        print(f"Counseling case {case_id} added successfully.")
+    except Exception as e:
+        print(f"Error inserting new case: {e}")
+        conn.rollback()
+
+def insert_new_session(case_id, session_date, session_notes, follow_up_date=None):
+    """Inserts a new counseling session into the database."""
+    session_id = generate_session_id()
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    follow_up_date_str = f"'{follow_up_date}'" if follow_up_date else "NULL"
+    
+    query = f"""
+        INSERT INTO counseling_sessions (
+            session_id, case_id, session_date, session_notes, follow_up_date, created_at
+        ) VALUES (
+            '{session_id}', '{case_id}', '{session_date}', '{session_notes}', {follow_up_date_str}, '{created_at}'
+        );
+    """
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        print(f"Counseling session {session_id} added successfully.")
+    except Exception as e:
+        print(f"Error inserting new session: {e}")
+        conn.rollback()
+
+def update_case(case_id, diagnosis=None, case_notes=None, is_case_closed=None):
+    """Updates an existing counseling case."""
+    update_fields = []
+    
+    if diagnosis:
+        update_fields.append(f"diagnosis = '{diagnosis}'")
+    if case_notes:
+        update_fields.append(f"case_notes = '{case_notes}'")
+    if is_case_closed is not None:
+        update_fields.append(f"is_case_closed = {int(is_case_closed)}")
+    
+    if not update_fields:
+        return  # Nothing to update
+    
+    update_query = f"""
+        UPDATE counseling_cases
+        SET {', '.join(update_fields)}, updated_at = '{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+        WHERE case_id = '{case_id}';
+    """
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(update_query)
+        conn.commit()
+        print(f"Case {case_id} updated successfully.")
+    except Exception as e:
+        print(f"Error updating case: {e}")
+        conn.rollback()
+
+def update_session(session_id, session_notes=None, follow_up_date=None):
+    """Updates an existing counseling session."""
+    update_fields = []
+    
+    if session_notes:
+        update_fields.append(f"session_notes = '{session_notes}'")
+    if follow_up_date:
+        update_fields.append(f"follow_up_date = '{follow_up_date}'")
+    
+    if not update_fields:
+        return  # Nothing to update
+
+    update_query = f"""
+        UPDATE counseling_sessions
+        SET {', '.join(update_fields)}
+        WHERE session_id = '{session_id}';
+    """
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(update_query)
+        conn.commit()
+        print(f"Session {session_id} updated successfully.")
+    except Exception as e:
+        print(f"Error updating session: {e}")
+        conn.rollback()
+
+def fetch_all_cases():
+    """Fetches all counseling cases from the database."""
+    query = "SELECT * FROM counseling_cases ORDER BY created_at DESC;"
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error fetching cases: {e}")
+        return []
+
+def fetch_sessions_for_case(case_id):
+    """Fetches all counseling sessions linked to a case."""
+    query = f"SELECT * FROM counseling_sessions WHERE case_id = '{case_id}' ORDER BY session_date DESC;"
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error fetching sessions: {e}")
+        return []
+
+def fetch_all_sessions():
+    """Fetch all counseling sessions from the database, sorted by newest first."""
+    conn = get_connection()
+    query = "SELECT * FROM counseling_sessions ORDER BY session_date DESC;"
+    try:
+        result = conn.execute(query)
+        sessions = result.fetchall()
+        return sessions
+    except Exception as e:
+        print(f"Error fetching sessions: {e}")
+        return []
+
+#Dashboard helper functions
+
+def fetch_employee_counts():
+    """Fetch the total count of teachers, admin staff, and management personnel."""
+    query = """
+        SELECT 
+            (SELECT COUNT(*) FROM teacher_details) AS teacher_count,
+            (SELECT COUNT(*) FROM admin_details) AS admin_count,
+            (SELECT COUNT(*) FROM management_details) AS management_count;
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return {
+            "Teachers": result[0] if result else 0,
+            "Admin Staff": result[1] if result else 0,
+            "Management": result[2] if result else 0,
+        }
+    except Exception as e:
+        print(f"Error fetching employee counts: {e}")
+        return {"Teachers": 0, "Admin Staff": 0, "Management": 0}
+
+def fetch_gender_distribution():
+    """Fetch the gender distribution across all employee tables."""
+    query = """
+        SELECT gender, COUNT(*) 
+        FROM (
+            SELECT gender FROM teacher_details 
+            UNION ALL
+            SELECT gender FROM admin_details 
+            UNION ALL
+            SELECT gender FROM management_details
+        ) AS all_employees
+        GROUP BY gender;
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return {row[0]: row[1] for row in result}
+    except Exception as e:
+        print(f"Error fetching gender distribution: {e}")
+        return {}
+
+def fetch_average_teacher_age():
+    """Fetch the average age of teachers."""
+    query = """
+        SELECT AVG((strftime('%Y', 'now') - strftime('%Y', date_of_birth))) 
+        FROM teacher_details 
+        WHERE date_of_birth IS NOT NULL;
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return round(result[0], 1) if result and result[0] else "N/A"
+    except Exception as e:
+        print(f"Error fetching average teacher age: {e}")
+        return "N/A"
+    
+def fetch_student_counts():
+    """Fetch counts for current students, alumni, and transferred students."""
+    query = """
+        SELECT 
+            SUM(CASE WHEN enrollment_status = 'enrolled' THEN 1 ELSE 0 END) AS current_students,
+            SUM(CASE WHEN enrollment_status = 'graduated' THEN 1 ELSE 0 END) AS alumni,
+            SUM(CASE WHEN enrollment_status = 'transferred' THEN 1 ELSE 0 END) AS transferred_students
+        FROM student_details;
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        row = cursor.fetchone()
+        return {
+            "Current Students": row[0] or 0,
+            "Alumni": row[1] or 0,
+            "Transferred Students": row[2] or 0,
+        }
+    except Exception as e:
+        print(f"Error fetching student counts: {e}")
+        return {"Current Students": 0, "Alumni": 0, "Transferred Students": 0}
+
+def fetch_stream_distribution():
+    """Fetch student distribution by stream where stream is not NULL."""
+    query = """
+        SELECT stream, COUNT(*) 
+        FROM student_details 
+        WHERE stream IS NOT NULL 
+        GROUP BY stream;
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return {row[0]: row[1] for row in result}
+    except Exception as e:
+        print(f"Error fetching stream distribution: {e}")
+        return {}
+
+def fetch_long_absence_count():
+    """Fetch count of students marked as 'long absence'."""
+    query = """
+        SELECT COUNT(*) 
+        FROM student_details 
+        WHERE long_absence = 'yes';
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result[0] if result else 0
+    except Exception as e:
+        print(f"Error fetching long absence count: {e}")
+        return 0
+
+# Financial Dashboard helper
+
+def fetch_defaulters_list():
+    """Fetch details of students who have overdue payments."""
+    query = """
+        SELECT s.student_id, s.student_full_name, s.grade, 
+               SUM(fp.amount) AS total_due,
+               COALESCE(SUM(p.amount_paid), 0) AS total_paid,
+               (SUM(fp.amount) - COALESCE(SUM(p.amount_paid), 0)) AS total_pending,
+               MAX(
+                   substr(fp.due_by, 7, 4) || '-' || substr(fp.due_by, 4, 2) || '-' || substr(fp.due_by, 1, 2)
+               ) AS due_date,
+               GROUP_CONCAT(DISTINCT fp.due_for) AS reasons
+        FROM student_details s
+        JOIN fees_payable fp ON s.student_id = fp.student_id
+        LEFT JOIN fees_payments p ON s.student_id = p.student_id
+        WHERE DATE(
+            substr(fp.due_by, 7, 4) || '-' || substr(fp.due_by, 4, 2) || '-' || substr(fp.due_by, 1, 2)
+        ) < DATE('now', 'localtime')  -- Convert DD/MM/YYYY to YYYY-MM-DD
+        GROUP BY s.student_id
+        HAVING total_pending > 0;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchall()
+        return [
+            {
+                "student_id": row[0],
+                "student_name": row[1],
+                "grade": row[2],
+                "total_due": row[3],
+                "total_paid": row[4],
+                "total_pending": row[5],
+                "due_date": row[6],
+                "reasons": row[7]
+            }
+            for row in result
+        ]
+    except Exception as e:
+        print(f"Error fetching defaulters list: {e}")
+        return []
+
+
+def fetch_defaulter_count_by_grade():
+    """Fetch count of students who have overdue fees, grouped by grade."""
+    query = """
+        SELECT s.grade, COUNT(DISTINCT s.student_id) AS defaulter_count
+        FROM student_details s
+        JOIN fees_payable fp ON s.student_id = fp.student_id
+        LEFT JOIN (
+            SELECT student_id, SUM(amount_paid) AS total_paid 
+            FROM fees_payments GROUP BY student_id
+        ) AS payments ON s.student_id = payments.student_id
+        WHERE DATE(
+            substr(fp.due_by, 7, 4) || '-' || substr(fp.due_by, 4, 2) || '-' || substr(fp.due_by, 1, 2)
+        ) < DATE('now', 'localtime') 
+        AND (COALESCE(payments.total_paid, 0) < fp.amount)
+        GROUP BY s.grade;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchall()
+        return {row[0]: row[1] for row in result}  # Return dictionary {grade: count}
+    except Exception as e:
+        print(f"Error fetching defaulter count by grade: {e}")
+        return {}
+
+    
+def fetch_total_profit():
+    """Fetch total profit from sales (Total Revenue - Total Cost Price)."""
+    query = """
+        SELECT COALESCE(SUM(total_cost) - SUM(cost_per_unit * quantity), 0) 
+        FROM sale_records;
+    """
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchone()
+        return result[0] if result and result[0] is not None else 0  # Ensure it doesn't return None
+    except Exception as e:
+        print(f"Error fetching total profit: {e}")
+        return 0
+
+
+def fetch_total_sales():
+    """Fetch total revenue generated from sales."""
+    query = "SELECT COALESCE(SUM(total_cost), 0) FROM sale_records;"
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchone()
+        return result[0] if result and result[0] is not None else 0  # Ensure it doesn't return None
+    except Exception as e:
+        print(f"Error fetching total sales: {e}")
+        return 0
