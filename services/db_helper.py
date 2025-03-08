@@ -450,19 +450,26 @@ def fetch_inventory_details(table_name):
         print(f"Error fetching inventory details from {table_name}: {e}")
         return []
 
-def fetch_latest_inventory_id(inventory_type):
-    """Fetch the latest inventory item ID from the selected inventory table."""
-    table_name = "sale_inventory" if inventory_type == "Sales Inventory" else "school_inventory"
-    id_prefix = "SJSSI" if inventory_type == "Sales Inventory" else "SJSSCI"
-
-    query = f"SELECT item_id FROM {table_name} WHERE item_id LIKE '{id_prefix}%' ORDER BY item_id DESC LIMIT 1;"
-
+def fetch_latest_inventory_id(table_name, prefix):
+    """
+    Fetch the latest inventory ID from the specified table, ensuring proper numerical ordering.
+    
+    :param table_name: The name of the inventory table ("sale_inventory" or "school_inventory").
+    :param prefix: The prefix for the ID ("SJSSI" or "SJSSCI").
+    :return: The latest item_id or None if no items exist.
+    """
+    query = f"""
+        SELECT item_id FROM {table_name} 
+        WHERE item_id LIKE '{prefix}%'
+        ORDER BY CAST(SUBSTR(item_id, LENGTH('{prefix}')+1) AS INTEGER) DESC
+        LIMIT 1;
+    """
     try:
         conn = get_connection()
         result = conn.execute(query).fetchone()
         return result[0] if result else None
     except Exception as e:
-        print(f"Error fetching latest inventory ID: {e}")
+        print(f"Error fetching latest inventory ID from {table_name}: {e}")
         return None
 
 
