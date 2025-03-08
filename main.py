@@ -37,6 +37,7 @@ sections = {
     "Inventory": [
         st.Page("screens/inventory/view_sales_inventory.py", title="Sales Inventory", icon=":material/storefront:"),
         st.Page("screens/inventory/view_school_inventory.py", title="School Inventory", icon=":material/class:"),
+        st.Page("screens/inventory/add_inventory_item.py", title="Add Inventory Item", icon=":material/class:"),
     ],
     "Sales": [
         st.Page("screens/sales/view_sales.py", title="View Sales", icon=":material/insights:"),

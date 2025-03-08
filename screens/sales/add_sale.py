@@ -25,9 +25,9 @@ selected_item_name = st.selectbox("Select Item", item_names, key="item_selector"
 # Get selected item details
 selected_item = next((item for item in available_items if item["item_name"] == selected_item_name), None)
 
-# Input fields for quantity and payment status
+# Input fields for quantity and payment status (now per item)
 quantity = st.number_input("Quantity", min_value=1, step=1, key="quantity_input")
-payment_status = st.selectbox("Payment Status", ["paid", "pending", "cancelled"])
+payment_status = st.selectbox("Payment Status (For This Item)", ["paid", "pending", "cancelled"], key="payment_status")
 
 # Input field for sale date (global for all items)
 sale_date = st.date_input("Sale Date").strftime("%Y-%m-%d")
@@ -38,7 +38,7 @@ if st.button("Add Item"):
         if quantity > selected_item["quantity"]:
             st.warning(f"Warning: Quantity sold exceeds inventory for {selected_item['item_name']}.")
 
-        # Add item to session state
+        # Add item to session state with its payment status
         st.session_state.sale_items.append({
             "item_id": selected_item["item_id"],
             "item_name": selected_item["item_name"],
@@ -46,6 +46,7 @@ if st.button("Add Item"):
             "cost_per_unit": selected_item["cost_per_unit"],
             "selling_price": selected_item["selling_price"],
             "total_price": quantity * selected_item["selling_price"],
+            "payment_status": payment_status,  # Payment status is now stored per item
         })
         st.success(f"Added {quantity} x {selected_item['item_name']} to the sale.")
 
@@ -54,7 +55,7 @@ if st.session_state.sale_items:
     st.write("### Bill Breakdown")
     total_price = 0
     for idx, item in enumerate(st.session_state.sale_items, start=1):
-        st.write(f"{idx}. {item['quantity']} x {item['item_name']} @ {item['selling_price']} = {item['total_price']}")
+        st.write(f"{idx}. {item['quantity']} x {item['item_name']} @ {item['selling_price']} = {item['total_price']} (Status: {item['payment_status']})")
         total_price += item["total_price"]
     st.write(f"**Total: {total_price}**")
 else:
@@ -71,7 +72,7 @@ if st.button("Finalize Sale"):
             else "SJSSALE00001"
         )
 
-        # Prepare sales data
+        # Prepare sales data with unique payment statuses
         sales = []
         for item in st.session_state.sale_items:
             sales.append({
@@ -81,7 +82,7 @@ if st.button("Finalize Sale"):
                 "quantity": item["quantity"],
                 "cost_per_unit": item["cost_per_unit"],
                 "selling_price": item["selling_price"],
-                "payment_status": payment_status,
+                "payment_status": item["payment_status"],  # Uses item's specific status
             })
 
         # Insert sale records into the database

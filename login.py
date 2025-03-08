@@ -15,7 +15,7 @@ if login_button_pressed:
     if email and password:
         # Authenticate user
         success, error = authenticate_user(email, password)
-        st.write(f"Debug: Success = {success}, Error = {error}")  # Debug the result of authentication
+        # st.write(f"Debug: Success = {success}, Error = {error}")  # Debug the result of authentication
         if success:
             # Set session state for successful login
             st.session_state["authenticated"] = True

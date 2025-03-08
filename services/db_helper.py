@@ -391,6 +391,7 @@ def fetch_management_details():
         print(f"Error fetching management details: {e}")
         return []
     
+# INVENTORY MANAGEMENT 
 def fetch_inventory_details(table_name):
     """Fetch all inventory details from the specified table."""
     conn = get_connection()
@@ -448,6 +449,55 @@ def fetch_inventory_details(table_name):
     except Exception as e:
         print(f"Error fetching inventory details from {table_name}: {e}")
         return []
+
+def fetch_latest_inventory_id(inventory_type):
+    """Fetch the latest inventory item ID from the selected inventory table."""
+    table_name = "sale_inventory" if inventory_type == "Sales Inventory" else "school_inventory"
+    id_prefix = "SJSSI" if inventory_type == "Sales Inventory" else "SJSSCI"
+
+    query = f"SELECT item_id FROM {table_name} WHERE item_id LIKE '{id_prefix}%' ORDER BY item_id DESC LIMIT 1;"
+
+    try:
+        conn = get_connection()
+        result = conn.execute(query).fetchone()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"Error fetching latest inventory ID: {e}")
+        return None
+
+
+def insert_sales_inventory(item_id, item_name, description, item_category, quantity, cost_per_unit, selling_price, status):
+    """Insert a new item into the sales inventory."""
+    query = f"""
+        INSERT INTO sale_inventory (item_id, item_name, description, item_category, quantity, cost_per_unit, selling_price, status)
+        VALUES ('{item_id}', '{item_name}', '{description}', '{item_category}', {quantity}, {cost_per_unit}, {selling_price}, '{status}');
+    """
+    try:
+        conn = get_connection()
+        conn.execute(query)
+        conn.commit()
+        print(f"Sales Inventory Item {item_id} added successfully.")
+    except Exception as e:
+        print(f"Error inserting sales inventory item: {e}")
+
+
+def insert_school_inventory(item_id, item_name, description, item_category, quantity, cost_per_unit, date_of_purchase, date_of_removal, status):
+    """Insert a new item into the school inventory."""
+    query = f"""
+        INSERT INTO school_inventory (item_id, item_name, description, item_category, quantity, cost_per_unit, date_of_purchase, date_of_removal, status)
+        VALUES ('{item_id}', '{item_name}', '{description}', '{item_category}', {quantity}, {cost_per_unit}, '{date_of_purchase}', 
+                {'NULL' if date_of_removal is None else f"'{date_of_removal}'"}, '{status}');
+    """
+    try:
+        conn = get_connection()
+        conn.execute(query)
+        conn.commit()
+        print(f"School Inventory Item {item_id} added successfully.")
+    except Exception as e:
+        print(f"Error inserting school inventory item: {e}")
+# END OF INVENTORY MANAGEMENT
+
+# FEES MANAGEMENT
 
 def fetch_due_fees(student_id):
     query = "SELECT * FROM fees_payable WHERE student_id = ?"
@@ -730,7 +780,7 @@ def fetch_checked_out_books():
         print(f"Error fetching checked out books: {e}")
         return []
     
-#SALES
+# SALES MANAGEMENT
 
 def decrease_inventory(item_id, quantity_sold):
     """
