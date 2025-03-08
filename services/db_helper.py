@@ -996,6 +996,7 @@ def insert_new_session(case_id, session_date, session_notes, follow_up_date=None
             '{session_id}', '{case_id}', '{session_date}', '{session_notes}', {follow_up_date_str}, '{created_at}'
         );
     """
+    print(query)
     
     try:
         conn = get_connection()
