@@ -1,30 +1,33 @@
 import streamlit as st
-from services.db_helper import insert_new_case, fetch_student_ids
+from services.db_helper import insert_new_case
 
 st.title("Add New Counseling Case")
 
-# Fetch student data for dropdown
-student_options = fetch_student_ids()
+student_name = st.text_input("Name of Student *")
+student_id = st.text_input("Student ID")
+student_grade = st.text_input("Grade")
+student_section = st.text_input("Section")
+reason_for_case = st.text_area("Reason for Case *")
+reported_by = st.text_input("Reported By")
+diagnoses = st.text_area("Diagnosis")
+case_notes = st.text_area("Case Notes")
+date_input = st.date_input("Case Reporting Date")
+date_of_case_creation = date_input.strftime("%Y-%m-%d") if date_input else ""
 
-# Create a mapping of "Student ID - Name" to Student ID
-student_mapping = {option: option.split(" - ")[0] for option in student_options}
+testing_required = st.checkbox("Student Requires External Testing")
+required_test = test_administered_by = test_results = None
+if testing_required:
+    required_test = st.text_area("Required Tests")
+    test_administered_by = st.text_input("Test Administered By")
+    test_results = st.text_area("Test Results")
 
-# Select Student (User sees "ID - Name", but we store only "ID")
-selected_display = st.selectbox("Select Student", list(student_mapping.keys()))
-student_id = student_mapping[selected_display]  # Extract only Student ID
-
-# Input fields
-reason_for_case = st.text_area("Reason for Case", placeholder="Enter the reason for opening this case")
-diagnosis = st.text_area("Diagnosis (Optional)", placeholder="Enter diagnosis if applicable")
-case_notes = st.text_area("Case Notes", placeholder="Enter any case notes or observations")
-
-# Case status
 is_case_closed = st.checkbox("Mark case as closed")
 
-# Submit button
 if st.button("Add Case"):
-    if not student_id or not reason_for_case:
-        st.error("Student ID and Reason for Case are required.")
+    if not student_name or not reason_for_case:
+        st.error("Student Name and Reason for Case are required.")
     else:
-        insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed)
-        st.success(f"New counseling case added successfully for Student {student_id}.")
+        insert_new_case(student_name, student_id, student_grade, student_section, reason_for_case,
+                        reported_by, diagnoses, case_notes, date_of_case_creation, is_case_closed,
+                        testing_required, required_test, test_administered_by, test_results)
+        st.success(f"New counseling case created successfully for Student: {student_name}.")

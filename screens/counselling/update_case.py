@@ -1,30 +1,50 @@
 import streamlit as st
-from services.db_helper import update_case, fetch_all_cases
+from datetime import datetime
+from services.db_helper import fetch_all_cases, update_case
 
 st.title("Update Counseling Case")
 
-# Fetch case data
+column_names = [
+    "case_id", "student_id", "reason_for_case", "diagnosis", "case_notes",
+    "is_case_closed", "created_at", "updated_at", "student_name",
+    "student_grade", "student_section", "date_of_case_creation",
+    "reported_by", "testing_required", "test_results", "required_test",
+    "test_administered_by"
+]
+
 cases = fetch_all_cases()
-case_options = {case[0]: case for case in cases}
+case_dicts = [dict(zip(column_names, c)) for c in cases]
+case_options = {f"{c['student_name']} ({c['student_id']})": c for c in case_dicts}
 
-case_id = st.selectbox("Select Case to Update", list(case_options.keys()))
+selected = st.selectbox("Select Case", list(case_options.keys()))
+if selected:
+    case_data = case_options[selected]
+    case_id = case_data["case_id"]
 
-if case_id:
-    case_data = case_options[case_id]
+    try:
+        initial_date = datetime.strptime(case_data.get("date_of_case_creation", ""), "%Y-%m-%d").date()
+    except:
+        initial_date = datetime.today()
 
-    # Extract existing values
-    existing_diagnosis = case_data[2] if case_data[2] else ""  # Diagnosis
-    existing_case_notes = case_data[3] if case_data[3] else ""  # Case Notes
-    existing_status = case_data[4]  # Case status (closed or not)
+    date_input = st.date_input("Case Reporting Date", value=initial_date)
+    date_of_case_creation = date_input.strftime("%Y-%m-%d")
 
-    # Input fields with pre-filled values
-    diagnosis = st.text_area("Diagnosis (Optional)", value=existing_diagnosis)
-    case_notes = st.text_area("Case Notes", value=existing_case_notes)
-    is_case_closed = st.checkbox("Mark case as closed", value=existing_status)
+    fields = {
+        "reason_for_case": st.text_area("Reason for Case *", value=case_data.get("reason_for_case", "")),
+        "diagnosis": st.text_area("Diagnosis", value=case_data.get("diagnosis", "")),
+        "case_notes": st.text_area("Case Notes", value=case_data.get("case_notes", "")),
+        "is_case_closed": st.checkbox("Case Closed?", value=bool(case_data.get("is_case_closed", False))),
+        "student_name": st.text_input("Student Name *", value=case_data.get("student_name", "")),
+        "student_grade": st.text_input("Grade", value=case_data.get("student_grade", "")),
+        "student_section": st.text_input("Section", value=case_data.get("student_section", "")),
+        "date_of_case_creation": date_of_case_creation,
+        "reported_by": st.text_input("Reported By", value=case_data.get("reported_by", "")),
+        "testing_required": st.checkbox("Testing Required", value=bool(case_data.get("testing_required", False))),
+        "test_results": st.text_area("Test Results", value=case_data.get("test_results", "")),
+        "required_test": st.text_input("Required Test", value=case_data.get("required_test", "")),
+        "test_administered_by": st.text_input("Test Administered By", value=case_data.get("test_administered_by", ""))
+    }
 
-    # Update button
     if st.button("Update Case"):
-        update_case(case_id, "diagnosis", diagnosis)
-        update_case(case_id, "case_notes", case_notes)
-        update_case(case_id, "is_case_closed", is_case_closed)
-        st.success(f"Case {case_id} updated successfully.")
+        update_case(case_id, **fields)
+        st.success(f"Case for {fields['student_name']} updated successfully.")
