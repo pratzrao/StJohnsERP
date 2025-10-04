@@ -1,5 +1,6 @@
 import streamlit as st
 from services.db_helper import update_session, fetch_sessions_for_case, fetch_all_cases
+from datetime import datetime
 
 st.title("Update Counseling Session")
 
@@ -21,14 +22,21 @@ if case_id:
         session_data = session_options[session_id]
         existing_session_notes = session_data[3] if session_data[3] else ""  # Session notes
         existing_follow_up_date = session_data[4] if session_data[4] else None  # Follow-up date
+        
+        # Convert follow-up date string to date object if it exists
+        parsed_follow_up_date = None
+        if existing_follow_up_date:
+            try:
+                parsed_follow_up_date = datetime.strptime(existing_follow_up_date, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                parsed_follow_up_date = None
 
         # Input fields with pre-filled data
         session_notes = st.text_area("Session Notes", value=existing_session_notes)
-        follow_up_date = st.date_input("Follow-up Date", value=existing_follow_up_date)
+        follow_up_date = st.date_input("Follow-up Date", value=parsed_follow_up_date)
 
         if st.button("Update Session"):
-            update_session(session_id, "session_notes", session_notes)
-            update_session(session_id, "follow_up_date", follow_up_date)
+            update_session(session_id, session_notes=session_notes, follow_up_date=follow_up_date)
             st.success(f"Session {session_id} updated successfully.")
     else:
         st.warning("No sessions found for this case.")
