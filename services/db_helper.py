@@ -54,16 +54,129 @@ def fetch_user(email):
         print(f"Error fetching user: {e}")
         return None
 
+def fetch_user_roles(user_type_id):
+    """Fetch roles for a specific user."""
+    conn = get_connection()
+    query = """
+        SELECT r.role_id, r.role_name, r.description 
+        FROM roles r
+        JOIN user_roles ur ON r.role_id = ur.role_id
+        WHERE ur.user_type_id = ?;
+    """
+    try:
+        result = conn.execute(query, (user_type_id,))
+        roles = result.fetchall()
+        return [{"role_id": row[0], "role_name": row[1], "description": row[2]} for row in roles]
+    except Exception as e:
+        print(f"Error fetching user roles: {e}")
+        return []
+
 def fetch_student_ids():
-    """Fetch all student IDs along with student names from the student_details table."""
-    query = "SELECT student_id, student_full_name FROM student_details;"
+    """Fetch all student IDs with names, grades, and sections for counselling dropdowns."""
+    query = "SELECT student_id, student_full_name, grade, section FROM student_details;"
     try:
         conn = get_connection()
         result = conn.execute(query)
-        return [f"{row[0]} - {row[1]}" for row in result.fetchall()]  # Format: "SJSS00001 - Siddhanth Singh"
+        return [f"{row[1]} - {row[2]} {row[3]}" for row in result.fetchall()]  # Format: "Student Name - Grade Section"
     except Exception as e:
         print(f"Error fetching student IDs: {e}")
         return []
+
+def fetch_student_ids_with_mapping():
+    """Fetch student data with mapping for counselling forms."""
+    query = "SELECT student_id, student_full_name, grade, section FROM student_details;"
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        students = []
+        mapping = {}
+        for row in result.fetchall():
+            display_text = f"{row[1]} - {row[2]} {row[3]}"  # "Student Name - Grade Section"
+            students.append(display_text)
+            mapping[display_text] = row[0]  # Map display text to student_id
+        return students, mapping
+    except Exception as e:
+        print(f"Error fetching student data: {e}")
+        return [], {}
+
+def fetch_student_details():
+    """Fetch all student details from the database."""
+    conn = get_connection()
+    query = """
+        SELECT 
+            student_id, student_full_name, grade, section, class_teacher_id,
+            stream, subjects, enrollment_status, entered_in_sts, long_absence, sts_number
+        FROM student_details;
+    """
+    try:
+        result = conn.execute(query)
+        students = result.fetchall()
+        return [
+            {
+                "student_id": row[0],
+                "student_full_name": row[1],
+                "grade": row[2],
+                "section": row[3],
+                "class_teacher_id": row[4],  # Display teacher ID for now
+                "stream": row[5],
+                "subjects": row[6],
+                "enrollment_status": row[7],
+                "entered_in_sts": row[8],
+                "long_absence": row[9],
+                "sts_number": row[10],
+            }
+            for row in students
+        ]
+    except Exception as e:
+        print(f"Error fetching student details: {e}")
+        return []
+
+def execute_query(query, params=None, fetch_one=False, fetch_all=False):
+    """
+    Executes a database query and logs the actual query being run.
+    """
+    global _connection
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Format the query with parameters
+        formatted_query = format_query_with_params(query, params)
+        print(f"Executing query: {formatted_query}")  # Log the exact query being executed
+
+        # Execute the formatted query
+        result = cursor.execute(formatted_query)
+
+        if fetch_one:
+            return result.fetchone()
+        elif fetch_all:
+            return result.fetchall()
+
+        conn.commit()
+        print("Transaction committed successfully.")
+
+    except Exception as e:
+        print(f"Query failed: {e}")
+        if "STREAM_EXPIRED" in str(e):
+            print("Stream expired. Reinitializing connection and retrying query.")
+            _connection = None
+            _connection = get_connection()
+            return execute_query(query, params, fetch_one, fetch_all)
+        raise Exception(f"Database query failed: {e}")
+
+def format_query_with_params(query, params):
+    """
+    Formats a SQL query with parameters by substituting them directly for debugging purposes.
+    """
+    if params:
+        for param in params:
+            if param is None:
+                query = query.replace("?", "NULL", 1)
+            elif isinstance(param, str):
+                query = query.replace("?", f"'{param.replace("'", "''")}'", 1)
+            else:
+                query = query.replace("?", str(param), 1)
+    return query
 
 # Generate Unique Case ID
 def generate_case_id():
@@ -218,6 +331,54 @@ def fetch_all_cases():
         print(f"Error fetching cases: {e}")
         return []
 
+def fetch_cases_with_student_info():
+    """Fetches open cases with student information for dropdown display."""
+    query = """
+        SELECT cc.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section, cc.reason_for_case, cc.is_case_closed
+        FROM counseling_cases cc
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        WHERE cc.is_case_closed = 0
+        ORDER BY cc.created_at DESC;
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        cases = []
+        mapping = {}
+        for row in result.fetchall():
+            display_text = f"{row[2]} - {row[3]} {row[4]} (Case: {row[0]})"  # "Student Name - Grade Section (Case: ID)"
+            cases.append(display_text)
+            mapping[display_text] = row[0]  # Map display text to case_id
+        return cases, mapping
+    except Exception as e:
+        print(f"Error fetching cases with student info: {e}")
+        return [], {}
+
+def fetch_all_cases_with_student_info():
+    """Fetches all cases (open and closed) with student information for dropdown display."""
+    query = """
+        SELECT cc.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section, cc.reason_for_case, cc.is_case_closed
+        FROM counseling_cases cc
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        ORDER BY cc.created_at DESC;
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        cases = []
+        mapping = {}
+        for row in result.fetchall():
+            status = " (Closed)" if row[6] else " (Open)"
+            display_text = f"{row[2]} - {row[3]} {row[4]} (Case: {row[0]}){status}"  # "Student Name - Grade Section (Case: ID) (Status)"
+            cases.append(display_text)
+            mapping[display_text] = row[0]  # Map display text to case_id
+        return cases, mapping
+    except Exception as e:
+        print(f"Error fetching all cases with student info: {e}")
+        return [], {}
+
 def fetch_sessions_for_case(case_id):
     """Fetches all counseling sessions linked to a case."""
     query = f"""
@@ -247,3 +408,74 @@ def fetch_all_sessions():
     except Exception as e:
         print(f"Error fetching sessions: {e}")
         return []
+
+def fetch_sessions_with_student_info():
+    """Fetch all counseling sessions with student information."""
+    conn = get_connection()
+    query = """
+        SELECT cs.session_id, cs.case_id, cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at,
+               cc.student_id, sd.student_full_name, sd.grade, sd.section
+        FROM counseling_sessions cs
+        JOIN counseling_cases cc ON cs.case_id = cc.case_id
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        ORDER BY cs.session_date DESC;
+    """
+    try:
+        result = conn.execute(query)
+        sessions = result.fetchall()
+        return sessions
+    except Exception as e:
+        print(f"Error fetching sessions with student info: {e}")
+        return []
+
+def fetch_sessions_for_student(student_id):
+    """Fetch all counseling sessions for a specific student."""
+    conn = get_connection()
+    query = f"""
+        SELECT cs.session_id, cs.case_id, cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at
+        FROM counseling_sessions cs
+        JOIN counseling_cases cc ON cs.case_id = cc.case_id
+        WHERE cc.student_id = '{student_id}'
+        ORDER BY cs.session_date DESC;
+    """
+    try:
+        result = conn.execute(query)
+        sessions = result.fetchall()
+        return sessions
+    except Exception as e:
+        print(f"Error fetching sessions for student: {e}")
+        return []
+
+def check_page_access(required_role_ids):
+    """Check if current user has access to a page based on required roles."""
+    import streamlit as st
+    
+    if not st.session_state.get("authenticated", False):
+        st.error("Please log in to access this page.")
+        st.stop()
+    
+    user_roles = st.session_state.get("user_roles", [])
+    user_role_ids = [role["role_id"] for role in user_roles]
+    
+    # Check if user has any of the required roles
+    if not any(role_id in user_role_ids for role_id in required_role_ids):
+        st.error("You don't have permission to access this page.")
+        st.stop()
+    
+    return True
+
+def check_existing_case_for_student(student_id):
+    """Check if a student already has an existing counselling case."""
+    conn = get_connection()
+    query = """
+        SELECT case_id, is_case_closed 
+        FROM counseling_cases 
+        WHERE student_id = ? AND is_case_closed = 0;
+    """
+    try:
+        result = conn.execute(query, (student_id,))
+        case = result.fetchone()
+        return case is not None, case[0] if case else None
+    except Exception as e:
+        print(f"Error checking existing case: {e}")
+        return False, None

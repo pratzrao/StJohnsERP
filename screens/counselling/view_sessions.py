@@ -1,11 +1,29 @@
 import streamlit as st
 import pandas as pd
-from services.db_helper import get_connection, fetch_all_sessions
+from services.db_helper import get_connection, fetch_all_sessions, fetch_sessions_for_student, fetch_student_ids_with_mapping
 
 st.title("View and Edit Counseling Sessions")
 
-# Fetch all counseling sessions
-sessions = fetch_all_sessions()
+# Add student filter
+student_options, student_mapping = fetch_student_ids_with_mapping()
+student_options.insert(0, "All Students")  # Add option to show all
+
+selected_student_display = st.selectbox(
+    "Filter by Student", 
+    student_options,
+    placeholder="Select a student to filter...",
+    help="Select a student to view only their sessions, or choose 'All Students' to view all sessions"
+)
+
+# Fetch sessions based on filter
+if selected_student_display == "All Students":
+    sessions = fetch_all_sessions()
+else:
+    student_id = student_mapping.get(selected_student_display, "")
+    if student_id:
+        sessions = fetch_sessions_for_student(student_id)
+    else:
+        sessions = []
 
 if sessions:
     column_names = [

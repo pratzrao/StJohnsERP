@@ -1,14 +1,20 @@
 import streamlit as st
-from services.db_helper import update_session, fetch_sessions_for_case, fetch_all_cases
+from services.db_helper import update_session, fetch_sessions_for_case, fetch_all_cases_with_student_info
 from datetime import datetime
 
 st.title("Update Counseling Session")
 
-# Fetch cases
-cases = fetch_all_cases()
-case_options = {case[0]: case for case in cases}
+# Fetch cases with student information
+case_options, case_mapping = fetch_all_cases_with_student_info()
 
-case_id = st.selectbox("Select Case", list(case_options.keys()))
+# Select case with student information (searchable dropdown)
+selected_case_display = st.selectbox(
+    "Select Case", 
+    case_options,
+    placeholder="Search for a case by student name...",
+    help="Select a case to update its sessions"
+)
+case_id = case_mapping.get(selected_case_display, "") if selected_case_display else ""
 
 if case_id:
     # Fetch sessions for selected case

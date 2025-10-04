@@ -14,12 +14,14 @@ login_button_pressed = st.button("Login")
 if login_button_pressed:
     if email and password:
         # Authenticate user
-        success, error = authenticate_user(email, password)
+        success, error, user_data = authenticate_user(email, password)
         # st.write(f"Debug: Success = {success}, Error = {error}")  # Debug the result of authentication
         if success:
             # Set session state for successful login
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
+            st.session_state["user_data"] = user_data
+            st.session_state["user_roles"] = user_data["roles"] if user_data else []
             st.write(f"Login successful for {email}.")  # Optional success message
             
             # Set a flag to reload and transition to main content
