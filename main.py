@@ -44,10 +44,20 @@ sections = {
         st.Page("screens/counselling/update_case.py", title="Update Counselling Case", icon=":material/edit:"),
         st.Page("screens/counselling/update_session.py", title="Update Counselling Session", icon=":material/edit_note:"),
     ],
+    "Admin": [
+        st.Page("screens/links.py", title="Shareable Links", icon=":material/link:"),
+    ],
 }
 
-# If authenticated, show the main content
-if st.session_state["authenticated"]:
+# Check if user is trying to access public survey
+# This allows anyone to access the public survey without authentication
+url_params = st.query_params
+if "page" in url_params and url_params["page"] == "public_survey":
+    # Run the public survey directly without any navigation
+    exec(open("public_survey.py").read())
+    st.stop()  # Stop execution to prevent showing other UI elements
+elif st.session_state["authenticated"]:
+    # If authenticated, show the main content
     st.sidebar.write(f"Logged in as: {st.session_state['email']}")
     
     # Role-based navigation
@@ -64,10 +74,11 @@ if st.session_state["authenticated"]:
         pg = st.navigation({
             "Students": sections["Students"],
             "Counselling": sections["Counselling"],
+            "Admin": sections["Admin"],
             "Account": [pages["Logout"]],
         })
 else:
-    # If not authenticated, show the login page
+    # If not authenticated, show only the login page
     pg = st.navigation([pages["Login"]])
 
 # Run the selected page
