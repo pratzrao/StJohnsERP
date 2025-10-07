@@ -4,24 +4,22 @@ st.title("📎 Shareable Links")
 st.write("This page contains shareable links for public forms and resources.")
 
 # Get current URL info
-if 'streamlit' in str(st.__version__):
-    # Try to get the current URL - this will work when deployed
-    try:
-        # For local development
-        base_url = "http://localhost:8501"
+try:
+    # For local development
+    base_url = "http://localhost:8501"
+    
+    # Check if we can detect the actual URL (works in some deployments)
+    import os
+    if 'STREAMLIT_SERVER_PORT' in os.environ:
+        port = os.environ['STREAMLIT_SERVER_PORT']
+        base_url = f"http://localhost:{port}"
+    
+    # For deployed apps, users will need to replace this with their actual URL
+    if st.session_state.get("deployed_url"):
+        base_url = st.session_state["deployed_url"]
         
-        # Check if we can detect the actual URL (works in some deployments)
-        import os
-        if 'STREAMLIT_SERVER_PORT' in os.environ:
-            port = os.environ['STREAMLIT_SERVER_PORT']
-            base_url = f"http://localhost:{port}"
-        
-        # For deployed apps, users will need to replace this with their actual URL
-        if st.session_state.get("deployed_url"):
-            base_url = st.session_state["deployed_url"]
-            
-    except:
-        base_url = "http://localhost:8501"
+except Exception as e:
+    base_url = "http://localhost:8501"
 
 # Allow users to set their deployed URL
 st.subheader("⚙️ URL Configuration")
@@ -55,12 +53,16 @@ with col2:
         # Note: This will copy to clipboard in some browsers
         st.write("Link copied!")
         
+st.warning("⚠️ **IMPORTANT:** Make sure to use the EXACT URL above including `?page=public_survey`")
+
 st.write("**Description:** Public survey form that anyone can access without login.")
 st.write("**Features:**")
 st.write("- ✅ No authentication required")
 st.write("- ✅ Clean, Google Forms-like interface") 
 st.write("- ✅ Saves responses to CSV file")
 st.write("- ✅ Mobile-friendly design")
+
+st.info("💡 **Copy the full URL above and paste it in a NEW browser tab to test**")
 
 # Testing Instructions
 st.divider()
@@ -75,14 +77,19 @@ with st.expander("How to test locally"):
     ```
     
     **Step 2: Test the shareable link**
-    1. Copy the survey URL above
-    2. Open a new browser tab/window
+    1. Copy the EXACT survey URL above (it should include `?page=public_survey`)
+    2. Open a NEW browser tab/window (important!)
     3. Paste the URL and press Enter
     4. You should see ONLY the survey form (no login, no navigation)
     
+    **⚠️ IMPORTANT URL FORMAT:**
+    - ✅ CORRECT: `http://localhost:8501/?page=public_survey`
+    - ❌ WRONG: `http://localhost:8501/public_survey`
+    - ❌ WRONG: `http://localhost:8501/public_survey.py`
+    
     **Step 3: Test incognito/private browsing**
     1. Open an incognito/private browser window
-    2. Paste the survey URL
+    2. Paste the survey URL (with ?page=public_survey)
     3. Verify it works without any authentication
     
     **Step 4: Test form submission**
