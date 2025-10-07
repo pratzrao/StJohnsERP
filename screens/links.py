@@ -45,11 +45,21 @@ for link in shareable_links:
         
         with col1:
             if st.button("📋 Copy", key=f"copy_{link['name']}"):
+                # JavaScript to copy URL to clipboard
+                js_code = f"""
+                <script>
+                navigator.clipboard.writeText('{full_url}').then(function() {{
+                    console.log('URL copied to clipboard');
+                }}).catch(function(err) {{
+                    console.error('Failed to copy: ', err);
+                }});
+                </script>
+                """
+                st.components.v1.html(js_code, height=0)
                 st.success("Link copied!")
         
         with col2:
             if st.button("🔗 Open", key=f"open_{link['name']}"):
-                st.write("Opening in new tab...")
                 js_code = f"""
                 <script>
                 window.open('{full_url}', '_blank');
