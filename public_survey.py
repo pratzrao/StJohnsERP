@@ -1,6 +1,4 @@
 import streamlit as st
-import csv
-import os
 from datetime import datetime
 
 # Configure the page to look more like a standalone form
@@ -34,29 +32,24 @@ response = st.selectbox(
 # Optional: Add name field
 name = st.text_input("Name (Optional):", placeholder="Enter your name")
 
+# Initialize survey responses in session state
+if "survey_responses" not in st.session_state:
+    st.session_state.survey_responses = []
+
 # Submit button
 if st.button("Submit Response"):
     if response and response != "":
-        # Create CSV file path
-        csv_file_path = "/Users/pratiksharao/Counselling Software/StJohnsERP/survey_responses.csv"
-        
         # Prepare data
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        response_data = [timestamp, name if name else "Anonymous", response]
-        
-        # Check if file exists, if not create with headers
-        file_exists = os.path.isfile(csv_file_path)
+        response_data = {
+            "timestamp": timestamp,
+            "name": name if name else "Anonymous",
+            "response": response
+        }
         
         try:
-            with open(csv_file_path, 'a', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                
-                # Write headers if file is new
-                if not file_exists:
-                    writer.writerow(["Timestamp", "Name", "Response"])
-                
-                # Write the response
-                writer.writerow(response_data)
+            # Add to session state (persistent across the session)
+            st.session_state.survey_responses.append(response_data)
             
             st.success("✅ Thank you! Your response has been recorded.")
             st.balloons()
@@ -68,33 +61,25 @@ if st.button("Submit Response"):
 
 # Optional: Show some stats (without revealing individual responses)
 if st.checkbox("Show response statistics"):
-    csv_file_path = "/Users/pratiksharao/Counselling Software/StJohnsERP/survey_responses.csv"
+    responses = st.session_state.survey_responses
     
-    if os.path.isfile(csv_file_path):
-        try:
-            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
-                reader = csv.reader(csvfile)
-                responses = list(reader)[1:]  # Skip header
-                
-                if responses:
-                    yes_count = sum(1 for row in responses if len(row) > 2 and row[2] == "Yes")
-                    no_count = sum(1 for row in responses if len(row) > 2 and row[2] == "No")
-                    total = yes_count + no_count
-                    
-                    st.write("### Response Summary")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Yes", yes_count)
-                    with col2:
-                        st.metric("No", no_count)
-                    with col3:
-                        st.metric("Total", total)
-                        
-                    if total > 0:
-                        st.write(f"**Yes: {yes_count/total*100:.1f}%** | **No: {no_count/total*100:.1f}%**")
-                else:
-                    st.write("No responses yet.")
-        except Exception as e:
-            st.error(f"Error reading responses: {e}")
+    if responses:
+        yes_count = sum(1 for resp in responses if resp["response"] == "Yes")
+        no_count = sum(1 for resp in responses if resp["response"] == "No")
+        total = len(responses)
+        
+        st.write("### Response Summary")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Yes", yes_count)
+        with col2:
+            st.metric("No", no_count)
+        with col3:
+            st.metric("Total", total)
+            
+        if total > 0:
+            yes_pct = (yes_count/total*100) if total > 0 else 0
+            no_pct = (no_count/total*100) if total > 0 else 0
+            st.write(f"**Yes: {yes_pct:.1f}%** | **No: {no_pct:.1f}%**")
     else:
         st.write("No responses yet.")
