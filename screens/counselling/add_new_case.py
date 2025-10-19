@@ -37,6 +37,29 @@ reason_for_case = st.text_area(
     disabled=has_existing_case
 )
 
+# Type of Issue dropdown (available to all roles)
+type_of_issue = st.selectbox(
+    "Type of Concern",
+    ["Behavioral", "Academic", "Both"],
+    placeholder="Select type of concern",
+    disabled=has_existing_case
+)
+
+# Student Gender dropdown (available to all roles)
+student_gender = st.selectbox(
+    "Student Gender",
+    ["Male", "Female", "Other"],
+    placeholder="Select student gender",
+    disabled=has_existing_case
+)
+
+# Confidentiality checkbox (available to all roles)
+is_confidential = st.checkbox(
+    "Mark as Confidential",
+    help="Check this box if the case contains sensitive information that should only be visible to super administrators",
+    disabled=has_existing_case
+)
+
 # Only show diagnosis and case notes for non-teachers
 diagnosis = ""
 case_notes = ""
@@ -58,8 +81,8 @@ if not is_teacher:
 
 # Submit button - disabled if case already exists
 if st.button("Add Case", disabled=has_existing_case):
-    if not student_id or not reason_for_case:
-        st.error("Student ID and Reason for Case are required.")
+    if not student_id or not reason_for_case or not type_of_issue or not student_gender:
+        st.error("Student ID, Reason for Case, Type of Concern, and Student Gender are required.")
     else:
-        insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed)
+        insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed, type_of_issue, is_confidential, student_gender)
         st.success(f"New counseling case added successfully for Student {student_id}.")

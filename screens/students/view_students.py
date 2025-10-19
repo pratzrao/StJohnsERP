@@ -10,10 +10,9 @@ if students:
     # Convert the student data to a DataFrame
     df = pd.DataFrame(students)
 
-    # Display the data editor table with the 'student_id' column disabled (non-editable)
+    # Display the data editor table with all columns editable including student_id
     edited_df = st.data_editor(
         df,
-        disabled=("student_id",),  # Disable the student_id column (non-editable)
         key="student_data_editor",
         height=500,
         width=900  # Adjust the height to suit your needs

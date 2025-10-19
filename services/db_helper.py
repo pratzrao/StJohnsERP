@@ -104,8 +104,10 @@ def fetch_student_details():
     conn = get_connection()
     query = """
         SELECT 
-            student_id, student_full_name, grade, section, class_teacher_id,
-            stream, subjects, enrollment_status, entered_in_sts, long_absence, sts_number
+            student_id, student_full_name, grade, section, stream, subjects, 
+            enrollment_status, entered_in_sts, long_absence, sts_number,
+            student_name_given_by_parent, date_of_birth, blood_group, father_name, mother_name,
+            father_mobile_number, mother_mobile_number, mother_tongue, aadhar_verification_status
         FROM student_details;
     """
     try:
@@ -117,13 +119,21 @@ def fetch_student_details():
                 "student_full_name": row[1],
                 "grade": row[2],
                 "section": row[3],
-                "class_teacher_id": row[4],  # Display teacher ID for now
-                "stream": row[5],
-                "subjects": row[6],
-                "enrollment_status": row[7],
-                "entered_in_sts": row[8],
-                "long_absence": row[9],
-                "sts_number": row[10],
+                "stream": row[4],
+                "subjects": row[5],
+                "enrollment_status": row[6],
+                "entered_in_sts": row[7],
+                "long_absence": row[8],
+                "sts_number": row[9],
+                "student_name_given_by_parent": row[10],
+                "date_of_birth": row[11],
+                "blood_group": row[12],
+                "father_name": row[13],
+                "mother_name": row[14],
+                "father_mobile_number": row[15],
+                "mother_mobile_number": row[16],
+                "mother_tongue": row[17],
+                "aadhar_verification_status": row[18],
             }
             for row in students
         ]
@@ -208,17 +218,22 @@ def generate_session_id():
         print(f"Error generating session ID: {e}")
         return "STSCS00001"
 
-def insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed):
+def insert_new_case(student_id, reason_for_case, diagnosis, case_notes, is_case_closed, type_of_issue=None, is_confidential=False, student_gender=None):
     """Inserts a new counseling case into the database."""
     case_id = generate_case_id()
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    # Handle the new fields
+    type_of_issue_str = f"'{type_of_issue}'" if type_of_issue else "NULL"
+    is_confidential_str = f"'{is_confidential}'" if is_confidential else "'No'"
+    student_gender_str = f"'{student_gender}'" if student_gender else "NULL"
+    
     query = f"""
         INSERT INTO counseling_cases (
-            case_id, student_id, reason_for_case, diagnosis, case_notes, is_case_closed, created_at, updated_at
+            case_id, student_id, reason_for_case, diagnosis, case_notes, is_case_closed, type_of_issue, is_confidential, student_gender, created_at, updated_at
         ) VALUES (
             '{case_id}', '{student_id}', '{reason_for_case}', '{diagnosis}', '{case_notes}', {int(is_case_closed)}, 
-            '{created_at}', '{created_at}'
+            {type_of_issue_str}, {is_confidential_str}, {student_gender_str}, '{created_at}', '{created_at}'
         );
     """
     
@@ -258,7 +273,7 @@ def insert_new_session(case_id, session_date, session_notes, follow_up_date=None
         print(f"Error inserting new session: {e}")
         conn.rollback()
 
-def update_case(case_id, diagnosis=None, case_notes=None, is_case_closed=None):
+def update_case(case_id, diagnosis=None, case_notes=None, is_case_closed=None, type_of_issue=None, is_confidential=None):
     """Updates an existing counseling case."""
     update_fields = []
     
@@ -268,6 +283,11 @@ def update_case(case_id, diagnosis=None, case_notes=None, is_case_closed=None):
         update_fields.append(f"case_notes = '{case_notes}'")
     if is_case_closed is not None:
         update_fields.append(f"is_case_closed = {int(is_case_closed)}")
+    if type_of_issue:
+        update_fields.append(f"type_of_issue = '{type_of_issue}'")
+    if is_confidential is not None:
+        confidential_value = 'Yes' if is_confidential else 'No'
+        update_fields.append(f"is_confidential = '{confidential_value}'")
     
     if not update_fields:
         return  # Nothing to update
@@ -317,10 +337,14 @@ def update_session(session_id, session_notes=None, follow_up_date=None):
         conn.rollback()
 
 def fetch_all_cases():
-    """Fetches all counseling cases from the database."""
+    """Fetches all counseling cases from the database with student details."""
     query = """
-        SELECT case_id, student_id, reason_for_case, diagnosis, case_notes, is_case_closed, created_at, updated_at 
-        FROM counseling_cases ORDER BY created_at DESC;
+        SELECT cc.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+               cc.reason_for_case, cc.diagnosis, cc.case_notes, cc.is_case_closed, 
+               cc.type_of_issue, cc.is_confidential, cc.student_gender, cc.created_at, cc.updated_at 
+        FROM counseling_cases cc
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        ORDER BY cc.created_at DESC;
     """
     
     try:
@@ -479,3 +503,407 @@ def check_existing_case_for_student(student_id):
     except Exception as e:
         print(f"Error checking existing case: {e}")
         return False, None
+
+def is_super_admin():
+    """Check if current user is a super admin (role_id = 1)."""
+    import streamlit as st
+    user_roles = st.session_state.get("user_roles", [])
+    return any(role["role_id"] == 1 for role in user_roles)
+
+def is_admin():
+    """Check if current user is an admin (role_id = 3)."""
+    import streamlit as st
+    user_roles = st.session_state.get("user_roles", [])
+    return any(role["role_id"] == 3 for role in user_roles)
+
+def can_view_confidential():
+    """Check if current user can view confidential information (super admin only)."""
+    return is_super_admin()
+
+def fetch_cases_with_confidentiality_filter():
+    """Fetches cases with confidentiality filtering based on user role."""
+    import streamlit as st
+    
+    if can_view_confidential():
+        # Super admin can see all cases
+        return fetch_all_cases()
+    else:
+        # Admin and teachers cannot see confidential cases
+        query = """
+            SELECT cc.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+                   cc.reason_for_case, cc.diagnosis, cc.case_notes, cc.is_case_closed, 
+                   cc.type_of_issue, cc.is_confidential, cc.created_at, cc.updated_at 
+            FROM counseling_cases cc
+            JOIN student_details sd ON cc.student_id = sd.student_id
+            WHERE cc.is_confidential != 'Yes' OR cc.is_confidential IS NULL
+            ORDER BY cc.created_at DESC;
+        """
+        
+        try:
+            conn = get_connection()
+            result = conn.execute(query)
+            return result.fetchall()
+        except Exception as e:
+            print(f"Error fetching filtered cases: {e}")
+            return []
+
+def count_hidden_confidential_cases():
+    """Count how many cases are hidden due to confidentiality."""
+    import streamlit as st
+    
+    if can_view_confidential():
+        return 0  # Super admin sees all, so nothing is hidden
+    
+    query = """
+        SELECT COUNT(*) 
+        FROM counseling_cases 
+        WHERE is_confidential = 'Yes';
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        count = result.fetchone()
+        return count[0] if count else 0
+    except Exception as e:
+        print(f"Error counting hidden cases: {e}")
+        return 0
+
+def fetch_sessions_with_confidentiality_filter():
+    """Fetches sessions with confidentiality filtering based on user role."""
+    if can_view_confidential():
+        # Super admin can see all sessions with student info
+        query = """
+            SELECT cs.session_id, cs.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+                   cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            JOIN student_details sd ON cc.student_id = sd.student_id
+            ORDER BY cs.session_date DESC;
+        """
+        try:
+            conn = get_connection()
+            result = conn.execute(query)
+            return result.fetchall()
+        except Exception as e:
+            print(f"Error fetching all sessions with student info: {e}")
+            return []
+    else:
+        # Admin and teachers cannot see sessions from confidential cases
+        query = """
+            SELECT cs.session_id, cs.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+                   cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            JOIN student_details sd ON cc.student_id = sd.student_id
+            WHERE cc.is_confidential != 'Yes' OR cc.is_confidential IS NULL
+            ORDER BY cs.session_date DESC;
+        """
+        
+        try:
+            conn = get_connection()
+            result = conn.execute(query)
+            return result.fetchall()
+        except Exception as e:
+            print(f"Error fetching filtered sessions: {e}")
+            return []
+
+def fetch_sessions_for_student_with_confidentiality_filter(student_id):
+    """Fetch sessions for a specific student with confidentiality filtering."""
+    if can_view_confidential():
+        # Super admin can see all sessions for the student with student info
+        query = f"""
+            SELECT cs.session_id, cs.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+                   cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            JOIN student_details sd ON cc.student_id = sd.student_id
+            WHERE cc.student_id = '{student_id}'
+            ORDER BY cs.session_date DESC;
+        """
+        try:
+            conn = get_connection()
+            result = conn.execute(query)
+            return result.fetchall()
+        except Exception as e:
+            print(f"Error fetching all sessions for student: {e}")
+            return []
+    else:
+        # Admin and teachers cannot see sessions from confidential cases
+        query = f"""
+            SELECT cs.session_id, cs.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section,
+                   cs.session_date, cs.session_notes, cs.follow_up_date, cs.created_at
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            JOIN student_details sd ON cc.student_id = sd.student_id
+            WHERE cc.student_id = '{student_id}' AND (cc.is_confidential != 'Yes' OR cc.is_confidential IS NULL)
+            ORDER BY cs.session_date DESC;
+        """
+        try:
+            conn = get_connection()
+            result = conn.execute(query)
+            return result.fetchall()
+        except Exception as e:
+            print(f"Error fetching filtered sessions for student: {e}")
+            return []
+
+def count_hidden_confidential_sessions():
+    """Count how many sessions are hidden due to confidentiality."""
+    if can_view_confidential():
+        return 0  # Super admin sees all, so nothing is hidden
+    
+    query = """
+        SELECT COUNT(*) 
+        FROM counseling_sessions cs
+        JOIN counseling_cases cc ON cs.case_id = cc.case_id
+        WHERE cc.is_confidential = 'Yes';
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        count = result.fetchone()
+        return count[0] if count else 0
+    except Exception as e:
+        print(f"Error counting hidden sessions: {e}")
+        return 0
+
+def count_hidden_confidential_sessions_for_student(student_id):
+    """Count how many sessions are hidden for a specific student due to confidentiality."""
+    if can_view_confidential():
+        return 0  # Super admin sees all, so nothing is hidden
+    
+    query = f"""
+        SELECT COUNT(*) 
+        FROM counseling_sessions cs
+        JOIN counseling_cases cc ON cs.case_id = cc.case_id
+        WHERE cc.student_id = '{student_id}' AND cc.is_confidential = 'Yes';
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        count = result.fetchone()
+        return count[0] if count else 0
+    except Exception as e:
+        print(f"Error counting hidden sessions for student: {e}")
+        return 0
+
+def count_sessions_for_case(case_id):
+    """Count how many sessions are linked to a specific case."""
+    query = f"""
+        SELECT COUNT(*) 
+        FROM counseling_sessions 
+        WHERE case_id = '{case_id}';
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        count = result.fetchone()
+        return count[0] if count else 0
+    except Exception as e:
+        print(f"Error counting sessions for case: {e}")
+        return 0
+
+def delete_counseling_case(case_id):
+    """Delete a counseling case and all associated sessions."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # First delete all sessions associated with this case
+        sessions_query = f"DELETE FROM counseling_sessions WHERE case_id = '{case_id}'"
+        cursor.execute(sessions_query)
+        
+        # Then delete the case
+        case_query = f"DELETE FROM counseling_cases WHERE case_id = '{case_id}'"
+        cursor.execute(case_query)
+        
+        conn.commit()
+        print(f"Successfully deleted case {case_id} and all associated sessions.")
+        return True
+    except Exception as e:
+        print(f"Error deleting case {case_id}: {e}")
+        conn.rollback()
+        return False
+
+def delete_counseling_session(session_id):
+    """Delete a specific counseling session."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        query = f"DELETE FROM counseling_sessions WHERE session_id = '{session_id}'"
+        cursor.execute(query)
+        conn.commit()
+        print(f"Successfully deleted session {session_id}.")
+        return True
+    except Exception as e:
+        print(f"Error deleting session {session_id}: {e}")
+        conn.rollback()
+        return False
+
+# Dashboard helper functions
+def get_dashboard_metrics(from_date=None, to_date=None):
+    """Get dashboard metrics for a specific date range."""
+    
+    # Build date filter condition
+    date_filter = ""
+    if from_date and to_date:
+        date_filter = f"AND DATE(cc.created_at) BETWEEN '{from_date}' AND '{to_date}'"
+    elif from_date:
+        date_filter = f"AND DATE(cc.created_at) >= '{from_date}'"
+    elif to_date:
+        date_filter = f"AND DATE(cc.created_at) <= '{to_date}'"
+    
+    try:
+        conn = get_connection()
+        
+        # Number of sessions conducted in date range
+        sessions_query = f"""
+            SELECT COUNT(cs.session_id)
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            WHERE 1=1 {date_filter}
+        """
+        
+        # Number of unique children counselled (who had sessions) in date range
+        unique_students_query = f"""
+            SELECT COUNT(DISTINCT cc.student_id)
+            FROM counseling_sessions cs
+            JOIN counseling_cases cc ON cs.case_id = cc.case_id
+            WHERE 1=1 {date_filter}
+        """
+        
+        # Number of new cases registered in date range
+        new_cases_query = f"""
+            SELECT COUNT(cc.case_id)
+            FROM counseling_cases cc
+            WHERE 1=1 {date_filter}
+        """
+        
+        sessions_count = conn.execute(sessions_query).fetchone()[0]
+        unique_students_count = conn.execute(unique_students_query).fetchone()[0]
+        new_cases_count = conn.execute(new_cases_query).fetchone()[0]
+        
+        return {
+            'sessions_conducted': sessions_count,
+            'unique_students': unique_students_count,
+            'new_cases': new_cases_count
+        }
+    except Exception as e:
+        print(f"Error getting dashboard metrics: {e}")
+        return {'sessions_conducted': 0, 'unique_students': 0, 'new_cases': 0}
+
+def get_students_with_no_sessions(from_date=None, to_date=None):
+    """Get students who have cases registered but no sessions conducted."""
+    
+    # Build date filter for case registration
+    date_filter = ""
+    if from_date and to_date:
+        date_filter = f"AND DATE(cc.created_at) BETWEEN '{from_date}' AND '{to_date}'"
+    elif from_date:
+        date_filter = f"AND DATE(cc.created_at) >= '{from_date}'"
+    elif to_date:
+        date_filter = f"AND DATE(cc.created_at) <= '{to_date}'"
+    
+    query = f"""
+        SELECT cc.case_id, cc.student_id, sd.student_full_name, sd.grade, sd.section, 
+               cc.reason_for_case, cc.type_of_issue, cc.created_at
+        FROM counseling_cases cc
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        LEFT JOIN counseling_sessions cs ON cc.case_id = cs.case_id
+        WHERE cs.session_id IS NULL {date_filter}
+        ORDER BY cc.created_at DESC
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error getting students with no sessions: {e}")
+        return []
+
+def get_issue_type_breakdown(from_date=None, to_date=None):
+    """Get breakdown of cases by issue type."""
+    
+    date_filter = ""
+    if from_date and to_date:
+        date_filter = f"AND DATE(created_at) BETWEEN '{from_date}' AND '{to_date}'"
+    elif from_date:
+        date_filter = f"AND DATE(created_at) >= '{from_date}'"
+    elif to_date:
+        date_filter = f"AND DATE(created_at) <= '{to_date}'"
+    
+    query = f"""
+        SELECT type_of_issue, COUNT(*) as count
+        FROM counseling_cases
+        WHERE type_of_issue IS NOT NULL {date_filter}
+        GROUP BY type_of_issue
+        ORDER BY count DESC
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error getting issue type breakdown: {e}")
+        return []
+
+def get_gender_breakdown(from_date=None, to_date=None):
+    """Get breakdown of cases by student gender."""
+    
+    date_filter = ""
+    if from_date and to_date:
+        date_filter = f"AND DATE(cc.created_at) BETWEEN '{from_date}' AND '{to_date}'"
+    elif from_date:
+        date_filter = f"AND DATE(cc.created_at) >= '{from_date}'"
+    elif to_date:
+        date_filter = f"AND DATE(cc.created_at) <= '{to_date}'"
+    
+    query = f"""
+        SELECT cc.student_gender, COUNT(*) as count
+        FROM counseling_cases cc
+        WHERE cc.student_gender IS NOT NULL {date_filter}
+        GROUP BY cc.student_gender
+        ORDER BY count DESC
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error getting gender breakdown: {e}")
+        return []
+
+def get_grade_breakdown(from_date=None, to_date=None):
+    """Get breakdown of cases by student grade."""
+    
+    date_filter = ""
+    if from_date and to_date:
+        date_filter = f"AND DATE(cc.created_at) BETWEEN '{from_date}' AND '{to_date}'"
+    elif from_date:
+        date_filter = f"AND DATE(cc.created_at) >= '{from_date}'"
+    elif to_date:
+        date_filter = f"AND DATE(cc.created_at) <= '{to_date}'"
+    
+    query = f"""
+        SELECT sd.grade, COUNT(*) as count
+        FROM counseling_cases cc
+        JOIN student_details sd ON cc.student_id = sd.student_id
+        WHERE sd.grade IS NOT NULL {date_filter}
+        GROUP BY sd.grade
+        ORDER BY sd.grade
+    """
+    
+    try:
+        conn = get_connection()
+        result = conn.execute(query)
+        return result.fetchall()
+    except Exception as e:
+        print(f"Error getting grade breakdown: {e}")
+        return []

@@ -1,35 +1,16 @@
 import streamlit as st
 from services.db_helper import execute_query, get_connection
 
-# Function to generate the next Student ID
-def get_next_student_id():
-    """
-    Generate the next Student ID by fetching the latest one from the database.
-    """
-    try:
-        query = "SELECT student_id FROM student_details ORDER BY student_id DESC LIMIT 1;"
-        latest_id = execute_query(query, fetch_one=True)  # Fetch the latest student_id
-
-        if latest_id and latest_id[0].startswith("SJSS"):
-            # Extract numeric part, increment, and pad to 4 digits
-            numeric_part = int(latest_id[0][4:])
-            next_id = numeric_part + 1
-            return f"SJSS{next_id:04d}"
-        else:
-            # If no valid student_id exists, start with SJSS0001
-            return "SJSS0001"
-    except Exception as e:
-        st.error(f"Error generating next Student ID: {e}")
-        return "ERROR"
-
-# Fetch the next student ID
-student_id = get_next_student_id()
+# Student IDs are now pre-generated and entered manually
 
 # Function to validate form data
-def validate_form(student_name, entered_in_sts, sts_number):
+def validate_form(student_id, student_name, entered_in_sts, sts_number):
     error_msgs = []
 
     # Validate mandatory fields
+    if not student_id.strip():
+        error_msgs.append("Student ID is mandatory.")
+    
     if not student_name.strip():
         error_msgs.append("Student Name is mandatory.")
 
@@ -39,12 +20,17 @@ def validate_form(student_name, entered_in_sts, sts_number):
     return error_msgs
 
 # Function to insert the student data into the database
-def insert_student_data(student_id, student_name, grade, section, stream, subjects, entered_in_sts, sts_number):
+def insert_student_data(student_id, student_name, grade, section, stream, subjects, entered_in_sts, sts_number, 
+                       student_name_given_by_parent=None, date_of_birth=None, blood_group=None, 
+                       father_name=None, mother_name=None, father_mobile_number=None, 
+                       mother_mobile_number=None, mother_tongue=None, aadhar_verification_status=None):
     query = """
         INSERT INTO student_details (
-            student_id, student_full_name, grade, section, class_teacher_id, stream, 
-            subjects, enrollment_status, entered_in_sts, long_absence, sts_number
-        ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, 'no', ?);
+            student_id, student_full_name, grade, section, stream, 
+            subjects, enrollment_status, entered_in_sts, long_absence, sts_number,
+            student_name_given_by_parent, date_of_birth, blood_group, father_name, mother_name,
+            father_mobile_number, mother_mobile_number, mother_tongue, aadhar_verification_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'no', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """
     params = (
         student_id,
@@ -55,8 +41,16 @@ def insert_student_data(student_id, student_name, grade, section, stream, subjec
         subjects,
         "enrolled",
         entered_in_sts,
-        "no",  # Default for long_absence
-        sts_number if entered_in_sts == "yes" else "",  # Insert empty string for sts_number if not required
+        sts_number if entered_in_sts == "yes" else "",
+        student_name_given_by_parent,
+        date_of_birth,
+        blood_group,
+        father_name,
+        mother_name,
+        father_mobile_number,
+        mother_mobile_number,
+        mother_tongue,
+        aadhar_verification_status
     )
 
     execute_query(query, params)
@@ -65,6 +59,8 @@ def insert_student_data(student_id, student_name, grade, section, stream, subjec
 st.title("Add New Student")
 
 # Use session_state to store form values
+if "student_id" not in st.session_state:
+    st.session_state.student_id = ""
 if "student_name" not in st.session_state:
     st.session_state.student_name = ""
 if "grade" not in st.session_state:
@@ -80,11 +76,29 @@ if "entered_in_sts" not in st.session_state:
 if "sts_number" not in st.session_state:
     st.session_state.sts_number = ""
 
+# Basic student information
+student_id = st.text_input("Student ID *", value=st.session_state.student_id, help="Enter the pre-generated student ID")
 student_name = st.text_input("Student Name *", value=st.session_state.student_name)
+student_name_given_by_parent = st.text_input("Student Name Given by Parent")
 grade = st.text_input("Grade", value=st.session_state.grade)
 section = st.text_input("Section", value=st.session_state.section)
 stream = st.text_input("Stream", value=st.session_state.stream)
 subjects = st.text_input("Subjects", value=st.session_state.subjects)
+
+# Personal information
+date_of_birth = st.date_input("Date of Birth", value=None)
+blood_group = st.selectbox("Blood Group", ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+
+# Family information
+st.write("**Family Information**")
+father_name = st.text_input("Father's Name")
+mother_name = st.text_input("Mother's Name")
+father_mobile_number = st.text_input("Father's Mobile Number")
+mother_mobile_number = st.text_input("Mother's Mobile Number")
+mother_tongue = st.text_input("Mother Tongue")
+
+# Administrative information
+aadhar_verification_status = st.selectbox("Aadhar Verification Status", ["", "Verified", "Pending", "Not Provided"])
 
 entered_in_sts = st.selectbox(
     "Entered in STS *", ["yes", "no"], index=0 if st.session_state.entered_in_sts == "no" else 1
@@ -105,20 +119,23 @@ def handle_submit():
     error_message.empty()
 
     # Validate form data
-    validation_errors = validate_form(student_name, entered_in_sts, sts_number)
+    validation_errors = validate_form(student_id, student_name, entered_in_sts, sts_number)
     if validation_errors:
         error_message.markdown("\n".join(validation_errors))
         return
 
     # Insert data into the database
     try:
-        insert_student_data(student_id, student_name, grade, section, stream, subjects, entered_in_sts, sts_number)
+        insert_student_data(
+            student_id, student_name, grade, section, stream, subjects, entered_in_sts, sts_number,
+            student_name_given_by_parent, date_of_birth, blood_group, 
+            father_name, mother_name, father_mobile_number, 
+            mother_mobile_number, mother_tongue, aadhar_verification_status
+        )
         st.success("Student added successfully!")
 
     except Exception as ex:
         st.error(f"Unexpected error: {ex}")
-
-st.text(f"Generated Student ID: {student_id}")
 
 # Submit Button
 st.button("Add Student", on_click=handle_submit)
